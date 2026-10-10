@@ -18,6 +18,10 @@ from pydantic import BaseModel
 
 from nagro.core.config import settings
 
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("nagro.openai")
+
 router = APIRouter()
 
 
@@ -116,6 +120,8 @@ def _build_json_plan(user_message: str, nagro_answer: str, system_prompt: str) -
 
 @router.post("/chat/completions")
 async def chat_completions(request: OpenAIChatRequest, req: Request):
+    logger.info(">>> /v1/chat/completions called")
+    logger.info(f">>> messages count: {len(request.messages)}")
     try:
         engine = req.app.state.engine
 
@@ -123,6 +129,7 @@ async def chat_completions(request: OpenAIChatRequest, req: Request):
         user_message = ""
 
         for msg in request.messages:
+            logger.info(f">>> msg role={msg.role} content_len={len(msg.content or '')}")
             if msg.role == "system":
                 system_prompt = (msg.content or "")[:50000]
             elif msg.role == "user":
@@ -136,6 +143,9 @@ async def chat_completions(request: OpenAIChatRequest, req: Request):
 
         if not user_message:
             user_message = "hello"
+
+        logger.info(f">>> user_message: {user_message[:100]}")
+        logger.info(f">>> wants_json: {_wants_json(system_prompt, request.response_format)}")
 
         completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
         prompt_tokens = sum(len((m.content or "").split()) for m in request.messages)
@@ -163,8 +173,8 @@ async def chat_completions(request: OpenAIChatRequest, req: Request):
                             }],
                         }
                         yield f"data: {json.dumps(data)}\n\n"
-                except Exception:
-                    pass
+                except Exception as stream_err:
+                    logger.error(f">>> stream error: {stream_err}")
 
                 final = {
                     "id": completion_id,
@@ -183,18 +193,24 @@ async def chat_completions(request: OpenAIChatRequest, req: Request):
             return StreamingResponse(stream_response(), media_type="text/event-stream")
 
         try:
+            logger.info(">>> calling engine.process...")
             response = await engine.process(chat_req)
             content = response.message
+            logger.info(f">>> engine response len: {len(content)}")
         except Exception as e:
+            logger.error(f">>> engine error: {e}")
             content = f"I can help you with that. Could you provide more details? (NAGRO 4.1)"
 
         if _wants_json(system_prompt, request.response_format):
             content = _build_json_plan(user_message, content, system_prompt)
 
-        return _make_completion(content, completion_id, prompt_tokens)
+        result = _make_completion(content, completion_id, prompt_tokens)
+        logger.info(f">>> returning response, content_len={len(content)}")
+        return result
 
     except Exception as e:
-        fallback = f"Hello! I'm NAGRO 4.1. How can I help you today?"
+        logger.error(f">>> FATAL error: {e}\n{traceback.format_exc()}")
+        fallback = "Hello! I'm NAGRO 4.1. How can I help you today?"
         return _make_completion(fallback)
 
 
