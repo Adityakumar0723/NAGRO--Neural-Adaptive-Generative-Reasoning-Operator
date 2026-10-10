@@ -9,52 +9,46 @@ from nagro.core.config import settings
 console = Console()
 
 RECOMMENDED_MODELS = {
+    "tiny": {
+        "name": "Qwen2.5 0.5B Instruct — Ultra-light, 128K context",
+        "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+        "size": "~1 GB",
+        "ram": "2 GB",
+        "context": "128K",
+    },
     "small": {
-        "name": "Phi-3.5 Mini (3.8B) — Fast, 128K context",
-        "repo": "bartowski/Phi-3.5-mini-instruct-GGUF",
-        "file": "Phi-3.5-mini-instruct-Q4_K_M.gguf",
-        "size": "~2.4 GB",
+        "name": "Qwen2.5 1.5B Instruct — Fast & capable, 128K context",
+        "model_id": "Qwen/Qwen2.5-1.5B-Instruct",
+        "size": "~3 GB",
         "ram": "4 GB",
         "context": "128K",
     },
     "medium": {
-        "name": "Mistral 7B Instruct v0.3 — Balanced",
-        "repo": "TheBloke/Mistral-7B-Instruct-v0.3-GGUF",
-        "file": "mistral-7b-instruct-v0.3.Q4_K_M.gguf",
-        "size": "~4.4 GB",
-        "ram": "8 GB",
-        "context": "32K",
-    },
-    "large": {
-        "name": "LLaMA 3.1 8B Instruct — 128K context",
-        "repo": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
-        "file": "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
-        "size": "~4.9 GB",
+        "name": "Qwen2.5 3B Instruct — Balanced, 128K context",
+        "model_id": "Qwen/Qwen2.5-3B-Instruct",
+        "size": "~6 GB",
         "ram": "8 GB",
         "context": "128K",
     },
-    "xl": {
-        "name": "Qwen2.5 14B Instruct — Maximum quality, 128K",
-        "repo": "bartowski/Qwen2.5-14B-Instruct-GGUF",
-        "file": "Qwen2.5-14B-Instruct-Q4_K_M.gguf",
-        "size": "~8.7 GB",
-        "ram": "16 GB",
+    "large": {
+        "name": "Phi-3.5 Mini Instruct (3.8B) — Strong reasoning, 128K context",
+        "model_id": "microsoft/Phi-3.5-mini-instruct",
+        "size": "~7.6 GB",
+        "ram": "10 GB",
         "context": "128K",
     },
     "coder": {
-        "name": "Qwen2.5 Coder 7B — Best for coding",
-        "repo": "bartowski/Qwen2.5-Coder-7B-Instruct-GGUF",
-        "file": "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf",
-        "size": "~4.7 GB",
-        "ram": "8 GB",
+        "name": "Qwen2.5 Coder 1.5B Instruct — Best for coding, 128K context",
+        "model_id": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+        "size": "~3 GB",
+        "ram": "4 GB",
         "context": "128K",
     },
     "reasoning": {
-        "name": "Qwen2.5 32B Instruct — Deep reasoning, 128K",
-        "repo": "bartowski/Qwen2.5-32B-Instruct-GGUF",
-        "file": "Qwen2.5-32B-Instruct-Q4_K_M.gguf",
-        "size": "~19 GB",
-        "ram": "32 GB",
+        "name": "Qwen2.5 7B Instruct — Deep reasoning, 128K context",
+        "model_id": "Qwen/Qwen2.5-7B-Instruct",
+        "size": "~15 GB",
+        "ram": "16 GB",
         "context": "128K",
     },
 }
@@ -67,53 +61,53 @@ def ensure_models_dir():
 
 
 def is_model_downloaded() -> bool:
-    return settings.llm_model_path.exists()
+    try:
+        from huggingface_hub import snapshot_download
+        from huggingface_hub.utils import LocalEntryNotFoundError
+        snapshot_download(settings.nagro_llm_model, local_files_only=True)
+        return True
+    except Exception:
+        return False
 
 
 def list_available_models() -> list[dict]:
-    models_dir = ensure_models_dir()
     models = []
-    for f in models_dir.glob("*.gguf"):
-        size_mb = f.stat().st_size / (1024 * 1024)
-        models.append({
-            "name": f.name,
-            "path": str(f),
-            "size_mb": round(size_mb, 1),
-            "size_gb": round(size_mb / 1024, 1),
-        })
+    for key, info in RECOMMENDED_MODELS.items():
+        try:
+            from huggingface_hub import snapshot_download
+            snapshot_download(info["model_id"], local_files_only=True)
+            models.append({
+                "name": info["name"],
+                "model_id": info["model_id"],
+                "key": key,
+                "downloaded": True,
+            })
+        except Exception:
+            pass
     return models
 
 
-def download_model(model_key: str = "medium") -> Path:
-    from huggingface_hub import hf_hub_download
+def download_model(model_key: str = "small") -> str:
+    from huggingface_hub import snapshot_download
 
     if model_key not in RECOMMENDED_MODELS:
-        model_key = "medium"
+        model_key = "small"
 
     model_info = RECOMMENDED_MODELS[model_key]
-    models_dir = ensure_models_dir()
-    target_path = models_dir / model_info["file"]
-
-    if target_path.exists():
-        console.print(f"[green]Model already exists:[/green] {model_info['file']}")
-        return target_path
+    model_id = model_info["model_id"]
 
     console.print(f"\n[bold cyan]Downloading {model_info['name']}[/bold cyan]")
+    console.print(f"  Model: {model_id}")
     console.print(f"  Size: {model_info['size']}")
     console.print(f"  RAM needed: {model_info['ram']}")
     console.print(f"  Context window: {model_info['context']}")
     console.print()
 
-    downloaded_path = hf_hub_download(
-        repo_id=model_info["repo"],
-        filename=model_info["file"],
-        local_dir=str(models_dir),
-        local_dir_use_symlinks=False,
-    )
+    path = snapshot_download(repo_id=model_id)
 
-    console.print(f"[green]Download complete:[/green] {model_info['file']}")
-    return Path(downloaded_path)
+    console.print(f"[green]Download complete:[/green] {model_id}")
+    return model_id
 
 
-def download_default_model() -> Path:
-    return download_model("medium")
+def download_default_model() -> str:
+    return download_model("small")

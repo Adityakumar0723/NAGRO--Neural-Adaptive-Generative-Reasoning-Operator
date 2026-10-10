@@ -87,8 +87,8 @@ NAGRO 4.1 — Fully Self-Built AI Platform (200K Context)
 │   ├── Math Agent             → Step-by-step problem solving
 │   └── Creative Agent         → Writing, poetry, content
 │
-├── Local Inference Engine
-│   ├── llama.cpp backend      → Runs GGUF models efficiently
+├── NAGRO Inference Engine (Self-Built)
+│   ├── PyTorch + Transformers → NAGRO's own inference pipeline
 │   ├── 200K context window    → Matches top-tier models
 │   ├── 16K max output tokens  → Long-form generation
 │   ├── CPU + GPU support      → Works on any hardware
@@ -158,12 +158,12 @@ python download_model.py
 
 | Key | Model | Size | RAM | Context |
 |---|---|---|---|---|
-| **small** | Phi-3.5 Mini 3.8B | ~2.4 GB | 4 GB | 128K |
-| **medium** | Mistral 7B Instruct | ~4.4 GB | 8 GB | 32K |
-| **large** | LLaMA 3.1 8B | ~4.9 GB | 8 GB | 128K |
-| **xl** | Qwen2.5 14B | ~8.7 GB | 16 GB | 128K |
-| **coder** | Qwen2.5 Coder 7B | ~4.7 GB | 8 GB | 128K |
-| **reasoning** | Qwen2.5 32B | ~19 GB | 32 GB | 128K |
+| **tiny** | Qwen2.5 0.5B Instruct | ~1 GB | 2 GB | 128K |
+| **small** | Qwen2.5 1.5B Instruct | ~3 GB | 4 GB | 128K |
+| **medium** | Qwen2.5 3B Instruct | ~6 GB | 8 GB | 128K |
+| **large** | Phi-3.5 Mini 3.8B | ~7.6 GB | 10 GB | 128K |
+| **coder** | Qwen2.5 Coder 1.5B | ~3 GB | 4 GB | 128K |
+| **reasoning** | Qwen2.5 7B Instruct | ~15 GB | 16 GB | 128K |
 
 ### 4. Run
 
@@ -279,7 +279,7 @@ NAGRO-AI/
 ├── nagro/
 │   ├── core/
 │   │   ├── engine.py            # Main orchestration engine
-│   │   ├── inference.py         # Local LLM inference (llama.cpp, 200K ctx)
+│   │   ├── inference.py         # NAGRO inference engine (200K ctx)
 │   │   ├── image_engine.py      # Local Stable Diffusion (SDXL Turbo)
 │   │   ├── model_manager.py     # Model download & management (6 models)
 │   │   ├── config.py            # Configuration (200K context, 16K output)

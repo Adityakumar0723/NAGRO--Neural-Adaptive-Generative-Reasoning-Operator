@@ -13,15 +13,17 @@ class Settings(BaseSettings):
     model_name: str = "NAGRO 4.1"
     model_version: str = "4.1.0"
 
-    # Local Model Paths
-    nagro_model_path: str = "models/"
-    nagro_llm_model: str = "mistral-7b-instruct-v0.3.Q4_K_M.gguf"
+    # NAGRO's Own Inference Engine — HuggingFace model IDs (downloaded locally)
+    nagro_llm_model: str = "Qwen/Qwen2.5-1.5B-Instruct"
     nagro_image_model: str = "stabilityai/sdxl-turbo"
     nagro_embedding_model: str = "all-MiniLM-L6-v2"
 
-    # Inference Settings — Opus 5.5 level context window
-    nagro_context_length: int = 200000  # 200K tokens — matches top-tier models
-    nagro_max_tokens: int = 16384       # 16K output tokens
+    # Model cache directory
+    nagro_model_cache: str = "models/"
+
+    # Inference Settings — 200K context window
+    nagro_context_length: int = 200000
+    nagro_max_tokens: int = 16384
     nagro_gpu_layers: int = 0
     nagro_threads: int = 4
     nagro_batch_size: int = 512
@@ -45,12 +47,8 @@ class Settings(BaseSettings):
     nagro_secret_key: str = "change-this-to-a-random-secret-key"
 
     @property
-    def llm_model_path(self) -> Path:
-        return Path(self.nagro_model_path) / self.nagro_llm_model
-
-    @property
     def models_dir(self) -> Path:
-        return Path(self.nagro_model_path)
+        return Path(self.nagro_model_cache)
 
 
 settings = Settings()

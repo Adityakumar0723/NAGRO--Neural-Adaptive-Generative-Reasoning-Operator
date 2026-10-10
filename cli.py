@@ -137,7 +137,7 @@ async def main():
                 if downloaded:
                     console.print("[green]Downloaded models:[/green]")
                     for m in downloaded:
-                        console.print(f"  • {m['name']} ({m['size_mb']} MB)")
+                        console.print(f"  [green]✓[/green] {m['name']}")
                 else:
                     console.print("[yellow]No models downloaded.[/yellow]")
                 console.print(f"\n[dim]Active: {settings.nagro_llm_model}[/dim]")

@@ -1,4 +1,4 @@
-"""NAGRO 4.1 — Setup configuration. Fully self-built."""
+"""NAGRO 4.1 — Setup configuration. Fully self-built, zero external APIs."""
 
 from setuptools import setup, find_packages
 
@@ -19,21 +19,25 @@ setup(
         "pydantic>=2.10.0",
         "pydantic-settings>=2.7.0",
         "python-dotenv>=1.0.0",
-        "llama-cpp-python>=0.3.0",
+        "transformers>=4.47.0",
+        "torch>=2.1.0",
+        "accelerate>=1.2.0",
+        "safetensors>=0.4.0",
         "huggingface-hub>=0.27.0",
+        "sentencepiece>=0.2.0",
         "httpx>=0.28.0",
         "duckduckgo-search>=7.0.0",
         "beautifulsoup4>=4.12.0",
         "rich>=13.9.0",
         "aiofiles>=24.1.0",
         "sse-starlette>=2.2.0",
+        "psutil>=6.1.0",
     ],
     extras_require={
         "image": [
             "diffusers>=0.31.0",
-            "transformers>=4.47.0",
-            "torch>=2.1.0",
-            "accelerate>=1.2.0",
+            "torchvision>=0.16.0",
+            "Pillow>=11.0.0",
         ],
     },
     classifiers=[

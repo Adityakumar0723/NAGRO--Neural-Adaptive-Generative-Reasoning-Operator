@@ -1,7 +1,7 @@
 # ============================================
 # NAGRO 4.1 - Fully Self-Built Dependencies
 # No external API providers. Everything runs locally.
-# 200K context window. Opus-level capabilities.
+# NAGRO's own inference engine. 200K context window.
 # ============================================
 
 # Core Framework
@@ -12,18 +12,18 @@ pydantic-settings==2.7.0
 python-dotenv==1.0.1
 websockets==14.1
 
-# Local LLM Inference (runs on YOUR machine)
-llama-cpp-python==0.3.4
+# NAGRO Inference Engine (runs on YOUR machine, no compilation needed)
+transformers==4.47.1
+torch>=2.1.0
+accelerate==1.2.1
+safetensors==0.4.5
 huggingface-hub==0.27.1
 tokenizers==0.21.0
+sentencepiece==0.2.0
 
 # Local Image Generation (Stable Diffusion on YOUR machine)
 diffusers==0.31.0
-transformers==4.47.1
-torch>=2.1.0
 torchvision>=0.16.0
-accelerate==1.2.1
-safetensors==0.4.5
 Pillow==11.0.0
 
 # Web Search (free, no API key needed)
