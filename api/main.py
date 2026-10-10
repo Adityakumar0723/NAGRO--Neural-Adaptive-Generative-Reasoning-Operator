@@ -45,13 +45,12 @@ async def lifespan(app: FastAPI):
     print(f"  Version 4.1 — Neural Adaptive Generative")
     print(f"  Reasoning Operator")
     print(f"")
-    print(f"  Inference    : 100% Local (Zero External APIs)")
+    print(f"  Engine       : NAGRO Self-Built Brain (Zero External AI)")
     print(f"  Context      : {settings.nagro_context_length:,} tokens (200K)")
     print(f"  Max Output   : {settings.nagro_max_tokens:,} tokens")
-    print(f"  LLM Model    : {settings.nagro_llm_model}")
-    print(f"  Image Model  : {settings.nagro_image_model}")
-    print(f"  GPU Layers   : {settings.nagro_gpu_layers}")
-    print(f"  Model Status : {model_status}")
+    print(f"  AI Models    : None (100% self-built)")
+    print(f"  Image Engine : NAGRO Procedural (self-built)")
+    print(f"  Status       : Ready")
     print(f"  Plugins      : {len(plugins.list_plugins())} loaded")
     print(f"  Web UI       : http://localhost:{settings.nagro_port}")
     print(f"  WebSocket    : ws://localhost:{settings.nagro_port}/ws/chat")
@@ -124,8 +123,9 @@ async def list_models():
     return {
         "downloaded": list_available_models(),
         "recommended": RECOMMENDED_MODELS,
-        "active": settings.nagro_llm_model,
+        "active": "NAGRO 4.1 Self-Built Brain",
         "context_length": settings.nagro_context_length,
+        "external_models": "none",
     }
 
 

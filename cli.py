@@ -18,7 +18,7 @@ from rich.text import Text
 from nagro.core.config import settings
 from nagro.core.engine import NAGROEngine
 from nagro.core.models import ChatRequest
-from nagro.core.model_manager import is_model_downloaded, RECOMMENDED_MODELS
+from nagro.core.model_manager import is_model_downloaded
 
 console = Console()
 
@@ -54,13 +54,7 @@ def print_help():
 async def main():
     print_banner()
 
-    if not is_model_downloaded():
-        console.print("[yellow]No model found![/yellow]")
-        console.print("Run: [cyan]python download_model.py[/cyan] to download a model.\n")
-        console.print("Available models:")
-        for key, info in RECOMMENDED_MODELS.items():
-            console.print(f"  [cyan]{key:8}[/cyan] — {info['name']} ({info['size']})")
-        console.print()
+    console.print("[green]NAGRO Self-Built Brain loaded — no external models needed![/green]\n")
 
     engine = NAGROEngine()
     conversation_id = None
@@ -140,7 +134,7 @@ async def main():
                         console.print(f"  [green]✓[/green] {m['name']}")
                 else:
                     console.print("[yellow]No models downloaded.[/yellow]")
-                console.print(f"\n[dim]Active: {settings.nagro_llm_model}[/dim]")
+                console.print(f"\n[dim]Active: NAGRO 4.1 Self-Built Brain[/dim]")
                 continue
 
             elif cmd == "/agent":

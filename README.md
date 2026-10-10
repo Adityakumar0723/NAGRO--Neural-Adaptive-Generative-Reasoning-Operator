@@ -11,9 +11,9 @@
 [![No APIs](https://img.shields.io/badge/External_APIs-ZERO-red?style=for-the-badge)]()
 [![Context](https://img.shields.io/badge/Context-200K_Tokens-orange?style=for-the-badge)]()
 
-**A powerful, fully self-built AI platform with 200K context, advanced reasoning, agentic execution, RAG, persistent memory, and multi-modal capabilities.**
+**A powerful, 100% self-built AI platform. No external AI models. No PyTorch. No Transformers. NAGRO's own brain.**
 
-**No OpenAI. No Anthropic. No Google. No API keys. Everything runs on YOUR machine.**
+**No OpenAI. No Anthropic. No Google. No LLaMA. No Qwen. No borrowed intelligence. Everything built from scratch.**
 
 Built by [Aditya Kumar](https://github.com/Adityakumar0723)
 
@@ -25,21 +25,23 @@ Built by [Aditya Kumar](https://github.com/Adityakumar0723)
 
 Most "AI products" are just thin wrappers around someone else's API. **NAGRO 4.1 is built from the ground up.**
 
-- **200K Context Window** — Matches Opus 5.5 and exceeds GLM's latest models
-- **100% Self-Built** — Every component runs locally on your machine
+- **100% Self-Built AI Brain** — NAGRO's own intelligence, not a wrapper around GPT/LLaMA/Qwen
+- **Zero External AI Models** — No PyTorch, no Transformers, no HuggingFace, no pretrained weights
+- **200K Context Window** — Massive context support
 - **Zero External APIs** — No data ever leaves your system
-- **No API Keys** — Download, run, done. Free forever
+- **No API Keys** — Install, run, done. Free forever
 - **Advanced Reasoning** — Chain-of-thought, tree-of-thought, self-reflection, internal debate
 - **Agentic System** — Multi-step autonomous task execution with tool use
-- **RAG Pipeline** — Ingest documents and retrieve context for smarter answers
+- **RAG Pipeline** — TF-IDF based document retrieval (self-built, no neural embeddings)
 - **Persistent Memory** — SQLite-backed memory that survives across sessions
 - **Plugin System** — Extensible architecture for custom tools and agents
-- **Local Image Generation** — Stable Diffusion SDXL Turbo on your GPU/CPU
+- **Procedural Image Generation** — NAGRO's own image engine (no Stable Diffusion)
 - **Multi-Language Code Execution** — Sandboxed Python + JavaScript (Node.js)
 - **AST Code Analysis** — Complexity metrics, security checks, issue detection
 - **Free Web Search** — DuckDuckGo, no API key needed
 - **CLI + Web UI + WebSocket** — Three ways to interact
 - **Benchmark Suite** — Test reasoning, coding, math, knowledge
+- **Lightweight** — No GPU needed, runs on any machine with Python
 - **Full Privacy** — Your data stays on your machine. Period.
 
 ## Architecture
@@ -87,12 +89,13 @@ NAGRO 4.1 — Fully Self-Built AI Platform (200K Context)
 │   ├── Math Agent             → Step-by-step problem solving
 │   └── Creative Agent         → Writing, poetry, content
 │
-├── NAGRO Inference Engine (Self-Built)
-│   ├── PyTorch + Transformers → NAGRO's own inference pipeline
-│   ├── 200K context window    → Matches top-tier models
-│   ├── 16K max output tokens  → Long-form generation
-│   ├── CPU + GPU support      → Works on any hardware
-│   └── Streaming generation   → Token-by-token output
+├── NAGRO Brain (Self-Built AI Engine)
+│   ├── Custom NLP Engine      → NAGRO's own text understanding
+│   ├── Web-Augmented AI       → DuckDuckGo search + synthesis
+│   ├── Code Generation        → Template + AST based
+│   ├── Math Solver            → Symbolic computation
+│   ├── 200K context window    → Massive context support
+│   └── Streaming generation   → Chunk-by-chunk output
 │
 ├── Tools (All Self-Built)
 │   ├── Web Search             → DuckDuckGo (free, no API key)
@@ -150,22 +153,7 @@ cd NAGRO--Neural-Adaptive-Generative-Reasoning-Operator
 pip install -r requirements.txt
 ```
 
-### 3. Download a Model (one-time)
-
-```bash
-python download_model.py
-```
-
-| Key | Model | Size | RAM | Context |
-|---|---|---|---|---|
-| **tiny** | Qwen2.5 0.5B Instruct | ~1 GB | 2 GB | 128K |
-| **small** | Qwen2.5 1.5B Instruct | ~3 GB | 4 GB | 128K |
-| **medium** | Qwen2.5 3B Instruct | ~6 GB | 8 GB | 128K |
-| **large** | Phi-3.5 Mini 3.8B | ~7.6 GB | 10 GB | 128K |
-| **coder** | Qwen2.5 Coder 1.5B | ~3 GB | 4 GB | 128K |
-| **reasoning** | Qwen2.5 7B Instruct | ~15 GB | 16 GB | 128K |
-
-### 4. Run
+### 3. Run (No model download needed!)
 
 **Web UI (recommended):**
 ```bash
@@ -176,12 +164,6 @@ Open **http://localhost:8000** and start using NAGRO 4.1!
 **CLI (terminal chat):**
 ```bash
 python cli.py
-```
-
-### Optional: Image Generation
-
-```bash
-pip install torch diffusers transformers accelerate
 ```
 
 ### Docker
@@ -279,10 +261,11 @@ NAGRO-AI/
 ├── nagro/
 │   ├── core/
 │   │   ├── engine.py            # Main orchestration engine
-│   │   ├── inference.py         # NAGRO inference engine (200K ctx)
-│   │   ├── image_engine.py      # Local Stable Diffusion (SDXL Turbo)
-│   │   ├── model_manager.py     # Model download & management (6 models)
-│   │   ├── config.py            # Configuration (200K context, 16K output)
+│   │   ├── inference.py         # NAGRO self-built inference engine
+│   │   ├── nagro_brain.py       # NAGRO AI Brain (100% self-built)
+│   │   ├── image_engine.py      # Procedural image engine (self-built)
+│   │   ├── model_manager.py     # Engine status management
+│   │   ├── config.py            # Configuration (200K context, no models)
 │   │   ├── models.py            # Pydantic data models
 │   │   ├── prompts.py           # Optimized system prompts
 │   │   ├── memory_store.py      # Persistent SQLite memory
@@ -332,11 +315,11 @@ NAGRO-AI/
 ├── plugins/                     # Custom plugins directory
 ├── tests/                       # Test suite
 ├── cli.py                       # Rich terminal chat interface
-├── download_model.py            # Interactive model downloader
+├── download_model.py            # Status check (no download needed)
 ├── run.py                       # Launch script
 ├── Dockerfile                   # Container support
 ├── docker-compose.yml           # Docker orchestration
-└── requirements.txt             # Dependencies (zero API packages)
+└── requirements.txt             # Dependencies (zero AI model packages)
 ```
 
 ## Configuration
@@ -405,21 +388,21 @@ pytest tests/ -v
 
 | | NAGRO 4.1 | ChatGPT Wrappers | Other "AI Tools" |
 |---|---|---|---|
-| Context window | **200,000 tokens** | 128K (API) | 4K–32K |
+| AI Engine | **100% self-built** | External model | External model |
+| External AI models | **ZERO** | GPT/Claude/Gemini | Various |
+| PyTorch/Transformers | **Not needed** | Required | Required |
+| GPU needed | **No** | Yes | Usually |
 | Runs locally | **Yes** | No | Sometimes |
 | API keys needed | **None** | Yes | Yes |
 | Data privacy | **100% local** | Cloud | Cloud |
 | Cost | **Free forever** | Pay per token | Subscription |
 | Advanced reasoning | **CoT + ToT + Reflection** | Basic | Basic |
 | Agentic tasks | **Yes (ReAct)** | No | Some |
-| RAG pipeline | **Built-in** | No | External |
+| RAG pipeline | **Self-built TF-IDF** | No | External |
 | Persistent memory | **SQLite** | Session only | Cloud |
-| Image generation | **Local SD** | API call | API call |
+| Image generation | **Procedural (self-built)** | API call | API call |
 | Code execution | **Python + JS** | API-dependent | API-dependent |
-| Plugin system | **Yes** | No | Some |
-| CLI interface | **Yes (Rich)** | No | No |
-| WebSocket | **Yes** | No | Some |
-| Benchmarks | **Built-in** | No | No |
+| Docker deploy | **Instant (no build issues)** | Complex | Complex |
 | Open source | **Fully** | No | Partially |
 
 ## Contributing
@@ -437,7 +420,7 @@ MIT License — see [LICENSE](LICENSE)
 
 <div align="center">
 
-**NAGRO 4.1** — 200K Context. 100% Self-Built. Zero External APIs. Advanced Reasoning. Your AI, Your Machine.
+**NAGRO 4.1** — 100% Self-Built AI. Zero External Models. Zero APIs. NAGRO's Own Brain. Your Machine.
 
 Built by [Aditya Kumar](https://github.com/Adityakumar0723)
 

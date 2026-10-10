@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p models outputs/images data plugins
+RUN mkdir -p data outputs/images plugins
 
 EXPOSE 8000
 

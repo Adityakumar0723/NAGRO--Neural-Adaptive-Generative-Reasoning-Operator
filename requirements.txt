@@ -1,7 +1,8 @@
 # ============================================
-# NAGRO 4.1 - Fully Self-Built Dependencies
-# No external API providers. Everything runs locally.
-# NAGRO's own inference engine. 200K context window.
+# NAGRO 4.1 - 100% Self-Built AI Platform
+# No external AI models. No PyTorch. No Transformers.
+# No OpenAI. No Anthropic. No Google. No HuggingFace models.
+# NAGRO's own engine. Zero borrowed intelligence.
 # ============================================
 
 # Core Framework
@@ -12,27 +13,16 @@ pydantic-settings==2.7.0
 python-dotenv==1.0.1
 websockets==14.1
 
-# NAGRO Inference Engine (runs on YOUR machine, no compilation needed)
-transformers==4.47.1
-torch>=2.1.0
-accelerate==1.2.1
-safetensors==0.4.5
-huggingface-hub==0.27.1
-tokenizers==0.21.0
-sentencepiece==0.2.0
-
-# Local Image Generation (Stable Diffusion on YOUR machine)
-diffusers==0.31.0
-torchvision>=0.16.0
-Pillow==11.0.0
-
 # Web Search (free, no API key needed)
 duckduckgo-search==7.2.1
 
-# Web Scraping (self-built research)
+# Web Scraping (NAGRO's own research pipeline)
 httpx==0.28.1
 beautifulsoup4==4.12.3
 markdownify==0.14.1
+
+# Image Processing (NAGRO's own procedural image engine)
+Pillow==11.0.0
 
 # Utilities
 rich==13.9.4

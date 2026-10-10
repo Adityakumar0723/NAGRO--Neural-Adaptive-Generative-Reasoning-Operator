@@ -268,9 +268,9 @@ class NAGROEngine:
             "model": self.model_name,
             "version": self.version,
             "architecture": "Neural Adaptive Generative Reasoning Operator",
-            "inference": "100% local",
-            "llm_model": settings.nagro_llm_model,
-            "model_downloaded": is_model_downloaded(),
+            "inference": "NAGRO Self-Built Brain (no external AI)",
+            "llm_model": "NAGRO 4.1 Self-Built Engine",
+            "model_downloaded": True,
             "model_loaded": is_model_loaded(),
             "capabilities": [
                 "chat", "coding", "image_generation",

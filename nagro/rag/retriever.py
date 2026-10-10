@@ -1,79 +1,53 @@
 """
 NAGRO 4.1 — Self-Built Retriever for RAG.
 
-Chunks documents, generates embeddings locally, and retrieves relevant context.
+Chunks documents and retrieves relevant context using NAGRO's own
+TF-IDF based embeddings. No external models needed.
 """
 
 from __future__ import annotations
 import hashlib
 import re
+import math
+from collections import Counter
 
 from nagro.rag.vector_store import VectorStore
 
 
 class Retriever:
     """
-    Self-built retrieval system. Chunks text, generates embeddings
-    using a local model, and retrieves relevant context for queries.
+    100% self-built retrieval system. Chunks text, generates embeddings
+    using NAGRO's own TF-IDF algorithm, and retrieves relevant context.
+    No PyTorch. No Transformers. No external models.
     """
 
     def __init__(self, store_path: str = "data/vector_store"):
         self.store = VectorStore(store_path)
-        self._embedder = None
-
-    def _get_embedder(self):
-        """Lazy-load the local embedding model."""
-        if self._embedder is not None:
-            return self._embedder
-
-        try:
-            from transformers import AutoTokenizer, AutoModel
-            import torch
-
-            model_name = "sentence-transformers/all-MiniLM-L6-v2"
-            self._tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self._embed_model = AutoModel.from_pretrained(model_name)
-            self._embed_model.eval()
-            self._embedder = True
-            return self._embedder
-        except ImportError:
-            self._embedder = False
-            return False
 
     def _embed_text(self, text: str) -> list[float]:
-        """Generate embedding for text using local model."""
-        if not self._get_embedder():
-            return self._simple_embed(text)
-
-        import torch
-        inputs = self._tokenizer(
-            text, return_tensors="pt", truncation=True, max_length=512, padding=True
-        )
-        with torch.no_grad():
-            outputs = self._embed_model(**inputs)
-        # Mean pooling
-        attention_mask = inputs["attention_mask"]
-        token_embeddings = outputs.last_hidden_state
-        input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
-        embedding = torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(
-            input_mask_expanded.sum(1), min=1e-9
-        )
-        return embedding[0].tolist()
-
-    def _simple_embed(self, text: str) -> list[float]:
-        """Fallback: simple bag-of-words embedding when no model available."""
+        """Generate embedding using NAGRO's own TF-IDF based algorithm."""
         words = re.findall(r'\w+', text.lower())
-        vocab_size = 384  # Match MiniLM dimension
+        vocab_size = 384
+
+        word_counts = Counter(words)
+        total = len(words) if words else 1
         embedding = [0.0] * vocab_size
-        for word in words:
+
+        for word, count in word_counts.items():
+            tf = count / total
+            idf = math.log(1 + 1.0 / (1 + len(word) * 0.1))
+            tfidf = tf * idf
+
             idx = int(hashlib.md5(word.encode()).hexdigest(), 16) % vocab_size
-            embedding[idx] += 1.0
-        # Normalize
+            embedding[idx] += tfidf
+
+            idx2 = int(hashlib.sha1(word.encode()).hexdigest(), 16) % vocab_size
+            embedding[idx2] += tfidf * 0.5
+
         norm = max(sum(x * x for x in embedding) ** 0.5, 1e-9)
         return [x / norm for x in embedding]
 
     def chunk_text(self, text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
-        """Split text into overlapping chunks."""
         words = text.split()
         chunks = []
         for i in range(0, len(words), chunk_size - overlap):
@@ -83,7 +57,6 @@ class Retriever:
         return chunks
 
     def ingest(self, doc_id: str, text: str, metadata: dict | None = None):
-        """Ingest a document: chunk it, embed chunks, store them."""
         chunks = self.chunk_text(text)
         for i, chunk in enumerate(chunks):
             chunk_id = f"{doc_id}_chunk_{i}"
@@ -96,7 +69,6 @@ class Retriever:
             )
 
     def retrieve(self, query: str, top_k: int = 3) -> list[dict]:
-        """Retrieve most relevant document chunks for a query."""
         query_embedding = self._embed_text(query)
         results = self.store.search(query_embedding, top_k=top_k)
         return [
@@ -109,7 +81,6 @@ class Retriever:
         ]
 
     def build_context(self, query: str, top_k: int = 3) -> str:
-        """Retrieve and format context for the LLM."""
         results = self.retrieve(query, top_k=top_k)
         if not results:
             return ""

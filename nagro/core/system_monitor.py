@@ -78,18 +78,7 @@ class SystemMonitor:
 
     def _get_gpu_info(self) -> dict:
         """Detect GPU availability."""
-        try:
-            import torch
-            if torch.cuda.is_available():
-                return {
-                    "available": True,
-                    "name": torch.cuda.get_device_name(0),
-                    "vram_gb": round(torch.cuda.get_device_properties(0).total_mem / (1024**3), 1),
-                    "cuda_version": torch.version.cuda or "N/A",
-                }
-            return {"available": False, "reason": "CUDA not available"}
-        except ImportError:
-            return {"available": False, "reason": "PyTorch not installed"}
+        return {"available": False, "note": "NAGRO uses its own self-built engine (no GPU needed)"}
 
     def get_performance_stats(self) -> dict:
         """Get NAGRO performance statistics."""
