@@ -1,312 +1,311 @@
-/**
- * NAGRO 4.1 — Frontend Application
- * Neural Adaptive Generative Reasoning Operator
- * 100% Self-Built. No External APIs.
- */
+/* NAGRO 4.1 — Chat UI */
+(function () {
+    const API = '/api/v1';
+    const BACKEND = '';
 
-const API_BASE = '/api/v1';
+    const $ = (s, p) => (p || document).querySelector(s);
+    const $$ = (s, p) => (p || document).querySelectorAll(s);
 
-const state = {
-    conversations: [],
-    currentConversationId: null,
-    messages: [],
-    isLoading: false,
-    currentMode: 'chat',
-};
+    const els = {
+        sidebar:     $('#sidebar'),
+        sessions:    $('#sessions'),
+        welcome:     $('#welcome'),
+        messages:    $('#messages'),
+        chatArea:    $('#chatArea'),
+        input:       $('#msgInput'),
+        sendBtn:     $('#sendBtn'),
+        newChatBtn:  $('#newChatBtn'),
+        menuBtn:     $('#menuBtn'),
+        closeSidebar:$('#closeSidebar'),
+        modelSelect: $('#modelSelect'),
+    };
 
-const chatArea = document.getElementById('chatArea');
-const messageInput = document.getElementById('messageInput');
-const sendBtn = document.getElementById('sendBtn');
-const newChatBtn = document.getElementById('newChatBtn');
-const chatHistory = document.getElementById('chatHistory');
+    const state = {
+        sessions: JSON.parse(localStorage.getItem('nagro_sessions') || '[]'),
+        activeId: null,
+        messages: [],
+        loading: false,
+    };
 
-document.addEventListener('DOMContentLoaded', () => {
-    setupEventListeners();
-    showWelcomeScreen();
-    autoResizeTextarea();
-    checkServerStatus();
-});
-
-function setupEventListeners() {
-    sendBtn.addEventListener('click', sendMessage);
-    messageInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-    messageInput.addEventListener('input', autoResizeTextarea);
-    newChatBtn.addEventListener('click', startNewChat);
-
-    document.getElementById('toggleSidebar')?.addEventListener('click', () => {
-        document.querySelector('.sidebar').classList.toggle('collapsed');
-    });
-
-    document.querySelectorAll('.mode-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            state.currentMode = btn.dataset.mode;
-        });
-    });
-}
-
-function autoResizeTextarea() {
-    messageInput.style.height = 'auto';
-    messageInput.style.height = Math.min(messageInput.scrollHeight, 200) + 'px';
-}
-
-async function checkServerStatus() {
-    try {
-        const res = await fetch(`${API_BASE}/health`);
-        const data = await res.json();
-        if (data.status === 'operational') {
-            console.log('NAGRO 4.1 server is operational (local inference)');
-        }
-    } catch {
-        console.warn('NAGRO 4.1 server not reachable');
-    }
-}
-
-function showWelcomeScreen() {
-    chatArea.innerHTML = `
-        <div class="welcome-screen">
-            <div class="welcome-logo">N</div>
-            <h2>NAGRO 4.1</h2>
-            <p>Neural Adaptive Generative Reasoning Operator — 100% self-built AI. Runs entirely on your machine. No external APIs. No data leaves your system.</p>
-            <div class="capabilities-grid">
-                <div class="capability-card" data-prompt="Write a Python function to implement binary search with detailed explanation">
-                    <div class="icon">&lt;/&gt;</div>
-                    <h4>Code Generation</h4>
-                    <p>Write, debug, optimize code in any language</p>
-                </div>
-                <div class="capability-card" data-prompt="Generate an image of a futuristic city with neon lights at night">
-                    <div class="icon">&#x1F3A8;</div>
-                    <h4>Image Generation</h4>
-                    <p>Create images locally with Stable Diffusion</p>
-                </div>
-                <div class="capability-card" data-prompt="Research the latest developments in quantum computing">
-                    <div class="icon">&#x1F50D;</div>
-                    <h4>Deep Research</h4>
-                    <p>Web search and information synthesis</p>
-                </div>
-                <div class="capability-card" data-prompt="Solve: Find the derivative of f(x) = x^3 * ln(x) step by step">
-                    <div class="icon">&#x1F4CA;</div>
-                    <h4>Mathematics</h4>
-                    <p>Step-by-step problem solving</p>
-                </div>
-                <div class="capability-card" data-prompt="Write a short sci-fi story about the first AI that dreams">
-                    <div class="icon">&#x270D;&#xFE0F;</div>
-                    <h4>Creative Writing</h4>
-                    <p>Stories, poetry, content creation</p>
-                </div>
-                <div class="capability-card" data-prompt="Explain how transformers work in deep learning, step by step">
-                    <div class="icon">&#x1F9E0;</div>
-                    <h4>Reasoning</h4>
-                    <p>Complex analysis and logical thinking</p>
-                </div>
-            </div>
-        </div>
-    `;
-
-    document.querySelectorAll('.capability-card').forEach(card => {
-        card.addEventListener('click', () => {
-            const prompt = card.dataset.prompt;
-            if (prompt) {
-                messageInput.value = prompt;
-                autoResizeTextarea();
-                messageInput.focus();
-            }
-        });
-    });
-}
-
-function startNewChat() {
-    state.currentConversationId = null;
-    state.messages = [];
-    showWelcomeScreen();
-    messageInput.value = '';
-    autoResizeTextarea();
-    messageInput.focus();
-}
-
-async function sendMessage() {
-    const message = messageInput.value.trim();
-    if (!message || state.isLoading) return;
-
-    state.isLoading = true;
-    sendBtn.disabled = true;
-    messageInput.value = '';
-    autoResizeTextarea();
-
-    if (state.messages.length === 0) {
-        chatArea.innerHTML = '<div class="messages-container" id="messagesContainer"></div>';
+    function init() {
+        bindEvents();
+        renderSessions();
+        showWelcome();
+        checkHealth();
     }
 
-    addMessage('user', message);
-    showTypingIndicator();
-
-    try {
-        const response = await fetch(`${API_BASE}/chat`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                message: message,
-                conversation_id: state.currentConversationId,
-                stream: false,
-            }),
+    function bindEvents() {
+        els.sendBtn.addEventListener('click', send);
+        els.input.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
         });
-
-        removeTypingIndicator();
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const data = await response.json();
-        state.currentConversationId = data.conversation_id;
-        addMessage('assistant', data.message, data.task_type);
-        updateChatHistory(message);
-    } catch (error) {
-        removeTypingIndicator();
-        addMessage('assistant',
-            `**Connection Error**\n\nCould not reach NAGRO 4.1 server.\n\n` +
-            `**Setup steps:**\n` +
-            `1. Install dependencies: \`pip install -r requirements.txt\`\n` +
-            `2. Download a model: \`python download_model.py\`\n` +
-            `3. Start server: \`python run.py\`\n\n` +
-            `Error: \`${error.message}\``,
-            'error'
-        );
-    }
-
-    state.isLoading = false;
-    sendBtn.disabled = false;
-    messageInput.focus();
-}
-
-function addMessage(role, content, taskType) {
-    const container = document.getElementById('messagesContainer') || chatArea;
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${role}`;
-
-    const avatar = role === 'user' ? 'You' : 'N';
-    const name = role === 'user' ? 'You' : 'NAGRO 4.1';
-    const badge = taskType && role === 'assistant'
-        ? `<span class="badge">${taskType}</span>`
-        : '';
-
-    messageDiv.innerHTML = `
-        <div class="message-avatar">${avatar}</div>
-        <div class="message-content">
-            <div class="message-header">
-                <span class="name">${name}</span>
-                ${badge}
-            </div>
-            <div class="message-body">${formatMarkdown(content)}</div>
-        </div>
-    `;
-
-    container.appendChild(messageDiv);
-    chatArea.scrollTop = chatArea.scrollHeight;
-
-    messageDiv.querySelectorAll('pre').forEach(pre => {
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'copy-btn';
-        copyBtn.textContent = 'Copy';
-        copyBtn.addEventListener('click', () => {
-            const code = pre.querySelector('code')?.textContent || pre.textContent;
-            navigator.clipboard.writeText(code).then(() => {
-                copyBtn.textContent = 'Copied!';
-                setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+        els.input.addEventListener('input', () => {
+            resize();
+            els.sendBtn.disabled = !els.input.value.trim();
+        });
+        els.newChatBtn.addEventListener('click', newChat);
+        els.menuBtn.addEventListener('click', () => {
+            els.sidebar.classList.toggle('hidden');
+            els.sidebar.classList.toggle('show');
+        });
+        els.closeSidebar.addEventListener('click', () => {
+            els.sidebar.classList.add('hidden');
+            els.sidebar.classList.remove('show');
+        });
+        $$('.cap-card').forEach(c => {
+            c.addEventListener('click', () => {
+                els.input.value = c.dataset.prompt;
+                resize();
+                els.sendBtn.disabled = false;
+                els.input.focus();
             });
         });
-        pre.style.position = 'relative';
-        pre.appendChild(copyBtn);
-    });
-
-    state.messages.push({ role, content });
-}
-
-function formatMarkdown(text) {
-    if (!text) return '';
-    text = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) =>
-        `<pre><code class="language-${lang || 'text'}">${escapeHtml(code.trim())}</code></pre>`
-    );
-    text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-    text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-    text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-    text = text.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-    text = text.replace(/^- (.+)$/gm, '<li>$1</li>');
-    text = text.replace(/(<li>.*<\/li>\n?)+/gs, '<ul>$&</ul>');
-    text = text.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-    text = text.replace(/\n\n/g, '</p><p>');
-    text = text.replace(/\n/g, '<br>');
-    if (!text.startsWith('<')) text = '<p>' + text + '</p>';
-    return text;
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.appendChild(document.createTextNode(text));
-    return div.innerHTML;
-}
-
-function showTypingIndicator() {
-    const container = document.getElementById('messagesContainer') || chatArea;
-    const indicator = document.createElement('div');
-    indicator.id = 'typingIndicator';
-    indicator.className = 'message assistant';
-    indicator.innerHTML = `
-        <div class="message-avatar">N</div>
-        <div class="message-content">
-            <div class="message-header">
-                <span class="name">NAGRO 4.1</span>
-                <span class="badge">thinking locally</span>
-            </div>
-            <div class="typing-indicator">
-                <span></span><span></span><span></span>
-            </div>
-        </div>
-    `;
-    container.appendChild(indicator);
-    chatArea.scrollTop = chatArea.scrollHeight;
-}
-
-function removeTypingIndicator() {
-    document.getElementById('typingIndicator')?.remove();
-}
-
-function updateChatHistory(firstMessage) {
-    const title = firstMessage.substring(0, 30) + (firstMessage.length > 30 ? '...' : '');
-    const existing = chatHistory.querySelector(`[data-id="${state.currentConversationId}"]`);
-    if (!existing) {
-        const item = document.createElement('div');
-        item.className = 'chat-history-item active';
-        item.dataset.id = state.currentConversationId;
-        item.innerHTML = `&#x1F4AC; ${escapeHtml(title)}`;
-        item.addEventListener('click', () => loadConversation(state.currentConversationId));
-        chatHistory.querySelectorAll('.chat-history-item').forEach(el => el.classList.remove('active'));
-        chatHistory.prepend(item);
     }
-}
 
-async function loadConversation(conversationId) {
-    try {
-        const response = await fetch(`${API_BASE}/conversations/${conversationId}`);
-        if (!response.ok) return;
-        const conv = await response.json();
-        state.currentConversationId = conversationId;
+    function resize() {
+        els.input.style.height = 'auto';
+        els.input.style.height = Math.min(els.input.scrollHeight, 200) + 'px';
+    }
+
+    async function checkHealth() {
+        try {
+            const r = await fetch(BACKEND + API + '/health');
+            if (r.ok) console.log('NAGRO 4.1 server operational');
+        } catch { console.warn('Server not reachable'); }
+    }
+
+    function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+    function showWelcome() {
+        els.welcome.classList.remove('hidden');
+        els.messages.classList.add('hidden');
+        els.messages.innerHTML = '';
         state.messages = [];
-        chatArea.innerHTML = '<div class="messages-container" id="messagesContainer"></div>';
-        for (const msg of conv.messages || []) {
-            addMessage(msg.role, msg.content, msg.metadata?.task_type);
-        }
-        chatHistory.querySelectorAll('.chat-history-item').forEach(el => {
-            el.classList.toggle('active', el.dataset.id === conversationId);
-        });
-    } catch (err) {
-        console.error('Failed to load conversation:', err);
+        state.activeId = null;
+        highlightSession();
     }
-}
+
+    function newChat() {
+        showWelcome();
+        els.input.value = '';
+        resize();
+        els.sendBtn.disabled = true;
+        els.input.focus();
+    }
+
+    function save() {
+        localStorage.setItem('nagro_sessions', JSON.stringify(state.sessions));
+    }
+
+    function renderSessions() {
+        els.sessions.innerHTML = '';
+        state.sessions.forEach(s => {
+            const div = document.createElement('div');
+            div.className = 'session-item' + (s.id === state.activeId ? ' active' : '');
+            div.innerHTML = `<span class="session-title">${esc(s.title)}</span><button class="delete-session" title="Delete">&times;</button>`;
+            div.querySelector('.session-title').addEventListener('click', () => loadSession(s.id));
+            div.querySelector('.delete-session').addEventListener('click', e => {
+                e.stopPropagation();
+                deleteSession(s.id);
+            });
+            els.sessions.appendChild(div);
+        });
+    }
+
+    function highlightSession() {
+        $$('.session-item', els.sessions).forEach(el => {
+            const title = el.querySelector('.session-title').textContent;
+            const s = state.sessions.find(x => x.title === title);
+            el.classList.toggle('active', s && s.id === state.activeId);
+        });
+    }
+
+    function loadSession(id) {
+        const s = state.sessions.find(x => x.id === id);
+        if (!s) return;
+        state.activeId = id;
+        state.messages = [...s.messages];
+        els.welcome.classList.add('hidden');
+        els.messages.classList.remove('hidden');
+        els.messages.innerHTML = '';
+        s.messages.forEach(m => appendMsg(m.role, m.content, false));
+        scrollBottom();
+        highlightSession();
+        renderSessions();
+    }
+
+    function deleteSession(id) {
+        state.sessions = state.sessions.filter(x => x.id !== id);
+        save();
+        if (state.activeId === id) newChat();
+        renderSessions();
+    }
+
+    async function send() {
+        const text = els.input.value.trim();
+        if (!text || state.loading) return;
+
+        state.loading = true;
+        els.sendBtn.disabled = true;
+        els.input.value = '';
+        resize();
+
+        if (!state.activeId) {
+            const id = uid();
+            const title = text.length > 40 ? text.slice(0, 40) + '...' : text;
+            state.sessions.unshift({ id, title, messages: [] });
+            state.activeId = id;
+            save();
+            renderSessions();
+        }
+
+        els.welcome.classList.add('hidden');
+        els.messages.classList.remove('hidden');
+
+        appendMsg('user', text);
+        saveMsg('user', text);
+        showThinking();
+
+        try {
+            const res = await fetch(BACKEND + API + '/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text, conversation_id: state.activeId, stream: false }),
+            });
+            removeThinking();
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            appendMsg('assistant', data.message);
+            saveMsg('assistant', data.message);
+        } catch (err) {
+            removeThinking();
+            const errMsg = 'Could not reach NAGRO 4.1 server. Make sure the backend is running.\n\nError: `' + err.message + '`';
+            appendMsg('assistant', errMsg);
+        }
+
+        state.loading = false;
+        els.sendBtn.disabled = !els.input.value.trim();
+        els.input.focus();
+    }
+
+    function saveMsg(role, content) {
+        const s = state.sessions.find(x => x.id === state.activeId);
+        if (s) { s.messages.push({ role, content }); save(); }
+    }
+
+    function appendMsg(role, content, animate) {
+        if (animate === undefined) animate = true;
+        const div = document.createElement('div');
+        div.className = 'msg ' + role;
+        if (!animate) div.style.animation = 'none';
+
+        const avatar = role === 'user' ? 'U' : 'N';
+        const label = role === 'user' ? 'You' : 'NAGRO 4.1';
+        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        div.innerHTML =
+            '<div class="msg-inner">' +
+                '<div class="msg-avatar">' + avatar + '</div>' +
+                '<div class="msg-body">' +
+                    '<div class="msg-role">' + label + '</div>' +
+                    '<div class="msg-content">' + renderMarkdown(content) + '</div>' +
+                    '<div class="msg-time">' + now + '</div>' +
+                '</div>' +
+            '</div>';
+
+        els.messages.appendChild(div);
+        addCopyButtons(div);
+        scrollBottom();
+    }
+
+    function showThinking() {
+        const div = document.createElement('div');
+        div.className = 'msg assistant';
+        div.id = 'thinkingMsg';
+        div.innerHTML =
+            '<div class="msg-inner">' +
+                '<div class="msg-avatar">N</div>' +
+                '<div class="msg-body">' +
+                    '<div class="msg-role">NAGRO 4.1</div>' +
+                    '<div class="thinking"><span></span><span></span><span></span></div>' +
+                '</div>' +
+            '</div>';
+        els.messages.appendChild(div);
+        scrollBottom();
+    }
+
+    function removeThinking() {
+        const t = document.getElementById('thinkingMsg');
+        if (t) t.remove();
+    }
+
+    function scrollBottom() {
+        els.chatArea.scrollTop = els.chatArea.scrollHeight;
+    }
+
+    function renderMarkdown(text) {
+        if (!text) return '';
+        let html = text;
+
+        const codeBlocks = [];
+        html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function (_, lang, code) {
+            const idx = codeBlocks.length;
+            const langLabel = lang || 'code';
+            codeBlocks.push(
+                '<div class="code-header"><span class="code-lang">' + esc(langLabel) + '</span>' +
+                '<button class="copy-btn" data-code="' + idx + '">Copy</button></div>' +
+                '<pre><code>' + esc(code.trim()) + '</code></pre>'
+            );
+            return '\x00CB' + idx + '\x00';
+        });
+
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+        html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+        html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+        html = html.replace(/^---$/gm, '<hr>');
+        html = html.replace(/^\> (.+)$/gm, '<blockquote>$1</blockquote>');
+        html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+        html = html.replace(/(<li>[\s\S]*?<\/li>)/g, function (m) {
+            return '<ul>' + m + '</ul>';
+        });
+        html = html.replace(/<\/ul>\s*<ul>/g, '');
+        html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        html = html.replace(/\n\n/g, '</p><p>');
+        html = html.replace(/\n/g, '<br>');
+        if (!html.startsWith('<')) html = '<p>' + html;
+        if (!html.endsWith('>')) html += '</p>';
+
+        html = html.replace(/\x00CB(\d+)\x00/g, function (_, i) { return codeBlocks[+i]; });
+
+        return html;
+    }
+
+    function addCopyButtons(container) {
+        $$('.copy-btn', container).forEach(btn => {
+            btn.addEventListener('click', function () {
+                const pre = this.closest('.code-header')?.nextElementSibling;
+                const code = pre ? (pre.querySelector('code')?.textContent || pre.textContent) : '';
+                navigator.clipboard.writeText(code).then(() => {
+                    btn.textContent = 'Copied!';
+                    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+                });
+            });
+        });
+    }
+
+    function esc(s) {
+        const d = document.createElement('div');
+        d.appendChild(document.createTextNode(s));
+        return d.innerHTML;
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();

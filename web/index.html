@@ -3,78 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NAGRO 4.1 — Neural Adaptive Generative Reasoning Operator</title>
+    <title>NAGRO 4.1</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%236c5ce7%22/><text x=%2250%22 y=%2268%22 font-size=%2260%22 font-weight=%22800%22 fill=%22white%22 text-anchor=%22middle%22 font-family=%22Inter,sans-serif%22>N</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%237c3aed%22/><text x=%2250%22 y=%2270%22 font-size=%2260%22 font-weight=%22700%22 fill=%22white%22 text-anchor=%22middle%22 font-family=%22Inter,sans-serif%22>N</text></svg>">
 </head>
 <body>
-    <div class="app-container">
+    <div class="app">
         <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo">N</div>
-                <div class="brand-info">
-                    <h1>NAGRO 4.1</h1>
-                    <span>Self-Built AI Engine</span>
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-top">
+                <div class="logo-row">
+                    <div class="logo">N</div>
+                    <span class="logo-text">NAGRO</span>
+                    <button class="close-sidebar" id="closeSidebar">&times;</button>
                 </div>
+                <button class="new-chat" id="newChatBtn">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    New Chat
+                </button>
             </div>
-
-            <button class="new-chat-btn" id="newChatBtn">
-                &#x2795; New Chat
-            </button>
-
-            <div class="chat-history" id="chatHistory">
-            </div>
-
-            <div class="sidebar-footer">
-                <div class="model-badge">
-                    <span class="dot"></span>
-                    <span>NAGRO 4.1 &bull; Local</span>
+            <div class="sessions" id="sessions"></div>
+            <div class="sidebar-bottom">
+                <div class="model-info">
+                    <div class="status-dot"></div>
+                    <div>
+                        <div class="model-name">NAGRO 4.1</div>
+                        <div class="model-desc">200K context &bull; Self-built</div>
+                    </div>
                 </div>
             </div>
         </aside>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Top Bar -->
-            <div class="top-bar">
-                <div class="top-bar-left">
-                    <button class="toggle-sidebar" id="toggleSidebar">&#9776;</button>
-                    <span class="current-model">NAGRO 4.1 &mdash; 100% Self-Built</span>
+        <!-- Main -->
+        <main class="main">
+            <header class="header">
+                <button class="menu-btn" id="menuBtn">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </button>
+                <div class="header-model">
+                    <select id="modelSelect" class="model-select">
+                        <option value="nagro-4.1">NAGRO 4.1</option>
+                    </select>
                 </div>
-                <div class="top-bar-right">
-                    <div class="mode-selector">
-                        <button class="mode-btn active" data-mode="chat">Chat</button>
-                        <button class="mode-btn" data-mode="code">Code</button>
-                        <button class="mode-btn" data-mode="research">Research</button>
-                        <button class="mode-btn" data-mode="creative">Creative</button>
-                    </div>
+                <div class="header-actions">
+                    <button class="icon-btn" id="themeToggle" title="Toggle theme">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </button>
                 </div>
-            </div>
+            </header>
 
-            <!-- Chat Area -->
             <div class="chat-area" id="chatArea">
-            </div>
-
-            <!-- Input Area -->
-            <div class="input-area">
-                <div class="input-container">
-                    <div class="input-box">
-                        <textarea
-                            id="messageInput"
-                            placeholder="Message NAGRO 4.1... (runs 100% locally on your machine)"
-                            rows="1"
-                            autofocus
-                        ></textarea>
-                        <div class="input-actions">
-                            <button class="send-btn" id="sendBtn" title="Send message">&#x27A4;</button>
+                <!-- Welcome Screen -->
+                <div class="welcome" id="welcome">
+                    <div class="welcome-logo">N</div>
+                    <h1>NAGRO 4.1</h1>
+                    <p class="welcome-sub">Neural Adaptive Generative Reasoning Operator</p>
+                    <p class="welcome-desc">100% self-built AI. No external APIs. No borrowed models. Built by Aditya Kumar.</p>
+                    <div class="capabilities">
+                        <div class="cap-card" data-prompt="Write a Python quicksort algorithm with explanation">
+                            <div class="cap-icon">&#128187;</div>
+                            <div class="cap-title">Code</div>
+                            <div class="cap-desc">Write, debug & review code</div>
+                        </div>
+                        <div class="cap-card" data-prompt="What is quantum computing? Explain in detail">
+                            <div class="cap-icon">&#128270;</div>
+                            <div class="cap-title">Research</div>
+                            <div class="cap-desc">Search & synthesize info</div>
+                        </div>
+                        <div class="cap-card" data-prompt="Calculate the area of a circle with radius 15">
+                            <div class="cap-icon">&#128290;</div>
+                            <div class="cap-title">Math</div>
+                            <div class="cap-desc">Step-by-step solutions</div>
+                        </div>
+                        <div class="cap-card" data-prompt="Write a poem about technology and human spirit">
+                            <div class="cap-icon">&#9997;</div>
+                            <div class="cap-title">Creative</div>
+                            <div class="cap-desc">Stories, poems & essays</div>
+                        </div>
+                        <div class="cap-card" data-prompt="Generate an image of a cyberpunk city at night">
+                            <div class="cap-icon">&#127912;</div>
+                            <div class="cap-title">Images</div>
+                            <div class="cap-desc">Procedural art generation</div>
+                        </div>
+                        <div class="cap-card" data-prompt="Summarize: AI is transforming every industry from healthcare to finance, enabling new possibilities that were previously unimaginable. Machine learning algorithms can now process vast amounts of data to find patterns and make predictions.">
+                            <div class="cap-icon">&#128196;</div>
+                            <div class="cap-title">Documents</div>
+                            <div class="cap-desc">Analyze & summarize text</div>
                         </div>
                     </div>
-                    <div class="input-footer">
-                        NAGRO 4.1 &mdash; Fully Self-Built &bull; No External APIs &bull; 100% Local Inference &bull; Built by Aditya Kumar
-                    </div>
+                </div>
+
+                <!-- Messages Container -->
+                <div class="messages" id="messages"></div>
+            </div>
+
+            <!-- Input -->
+            <div class="input-wrapper">
+                <div class="input-container">
+                    <textarea id="msgInput" placeholder="Message NAGRO 4.1..." rows="1"></textarea>
+                    <button class="send-btn" id="sendBtn" disabled>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                </div>
+                <div class="input-footer">
+                    NAGRO 4.1 &mdash; 100% Self-Built by Aditya Kumar &bull; Zero External APIs &bull; 200K Context
                 </div>
             </div>
         </main>
