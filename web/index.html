@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NAGRO 4.1 — Neural Adaptive Generative Reasoning Operator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%236c5ce7%22/><text x=%2250%22 y=%2268%22 font-size=%2260%22 font-weight=%22800%22 fill=%22white%22 text-anchor=%22middle%22 font-family=%22Inter,sans-serif%22>N</text></svg>">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">N</div>
+                <div class="brand-info">
+                    <h1>NAGRO 4.1</h1>
+                    <span>AI Reasoning Engine</span>
+                </div>
+            </div>
+
+            <button class="new-chat-btn" id="newChatBtn">
+                &#x2795; New Chat
+            </button>
+
+            <div class="chat-history" id="chatHistory">
+                <!-- Chat history items will be added dynamically -->
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="model-badge">
+                    <span class="dot"></span>
+                    <span>NAGRO 4.1 &bull; Online</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="top-bar-left">
+                    <button class="toggle-sidebar" id="toggleSidebar">&#9776;</button>
+                    <span class="current-model">NAGRO 4.1</span>
+                </div>
+                <div class="top-bar-right">
+                    <div class="mode-selector">
+                        <button class="mode-btn active" data-mode="chat">Chat</button>
+                        <button class="mode-btn" data-mode="code">Code</button>
+                        <button class="mode-btn" data-mode="research">Research</button>
+                        <button class="mode-btn" data-mode="creative">Creative</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Area -->
+            <div class="chat-area" id="chatArea">
+                <!-- Welcome screen / Messages will be rendered here -->
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-container">
+                    <div class="input-box">
+                        <textarea
+                            id="messageInput"
+                            placeholder="Message NAGRO 4.1..."
+                            rows="1"
+                            autofocus
+                        ></textarea>
+                        <div class="input-actions">
+                            <button class="send-btn" id="sendBtn" title="Send message">&#x27A4;</button>
+                        </div>
+                    </div>
+                    <div class="input-footer">
+                        NAGRO 4.1 &mdash; Neural Adaptive Generative Reasoning Operator &bull; Built by Aditya Kumar
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
