@@ -19,6 +19,7 @@ from api.routes.code import router as code_router
 from api.routes.research import router as research_router
 from api.routes.files import router as files_router
 from api.routes.websocket import router as ws_router
+from api.routes.openai_compat import router as openai_router
 
 
 @asynccontextmanager
@@ -87,6 +88,7 @@ app.include_router(code_router, prefix="/api/v1", tags=["Code"])
 app.include_router(research_router, prefix="/api/v1", tags=["Research"])
 app.include_router(files_router, prefix="/api/v1", tags=["Files & Code Analysis"])
 app.include_router(ws_router, tags=["WebSocket"])
+app.include_router(openai_router, prefix="/v1", tags=["OpenAI Compatible"])
 
 # Static files
 app.mount("/css", StaticFiles(directory="web/css"), name="css")
