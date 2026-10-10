@@ -1,10 +1,8 @@
 """NAGRO 4.1 Model Manager — download and manage local models."""
 
 from __future__ import annotations
-import os
 from pathlib import Path
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from nagro.core.config import settings
 
@@ -12,11 +10,12 @@ console = Console()
 
 RECOMMENDED_MODELS = {
     "small": {
-        "name": "Phi-3 Mini (3.8B) — Fast, lightweight",
+        "name": "Phi-3.5 Mini (3.8B) — Fast, 128K context",
         "repo": "bartowski/Phi-3.5-mini-instruct-GGUF",
         "file": "Phi-3.5-mini-instruct-Q4_K_M.gguf",
         "size": "~2.4 GB",
         "ram": "4 GB",
+        "context": "128K",
     },
     "medium": {
         "name": "Mistral 7B Instruct v0.3 — Balanced",
@@ -24,38 +23,54 @@ RECOMMENDED_MODELS = {
         "file": "mistral-7b-instruct-v0.3.Q4_K_M.gguf",
         "size": "~4.4 GB",
         "ram": "8 GB",
+        "context": "32K",
     },
     "large": {
-        "name": "LLaMA 3.1 8B Instruct — Powerful",
+        "name": "LLaMA 3.1 8B Instruct — 128K context",
         "repo": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
         "file": "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
         "size": "~4.9 GB",
         "ram": "8 GB",
+        "context": "128K",
     },
     "xl": {
-        "name": "Qwen2.5 14B Instruct — Maximum quality",
+        "name": "Qwen2.5 14B Instruct — Maximum quality, 128K",
         "repo": "bartowski/Qwen2.5-14B-Instruct-GGUF",
         "file": "Qwen2.5-14B-Instruct-Q4_K_M.gguf",
         "size": "~8.7 GB",
         "ram": "16 GB",
+        "context": "128K",
+    },
+    "coder": {
+        "name": "Qwen2.5 Coder 7B — Best for coding",
+        "repo": "bartowski/Qwen2.5-Coder-7B-Instruct-GGUF",
+        "file": "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf",
+        "size": "~4.7 GB",
+        "ram": "8 GB",
+        "context": "128K",
+    },
+    "reasoning": {
+        "name": "Qwen2.5 32B Instruct — Deep reasoning, 128K",
+        "repo": "bartowski/Qwen2.5-32B-Instruct-GGUF",
+        "file": "Qwen2.5-32B-Instruct-Q4_K_M.gguf",
+        "size": "~19 GB",
+        "ram": "32 GB",
+        "context": "128K",
     },
 }
 
 
 def ensure_models_dir():
-    """Create models directory if it doesn't exist."""
     models_dir = settings.models_dir
     models_dir.mkdir(parents=True, exist_ok=True)
     return models_dir
 
 
 def is_model_downloaded() -> bool:
-    """Check if the configured LLM model is already downloaded."""
     return settings.llm_model_path.exists()
 
 
 def list_available_models() -> list[dict]:
-    """List all downloaded models."""
     models_dir = ensure_models_dir()
     models = []
     for f in models_dir.glob("*.gguf"):
@@ -64,12 +79,12 @@ def list_available_models() -> list[dict]:
             "name": f.name,
             "path": str(f),
             "size_mb": round(size_mb, 1),
+            "size_gb": round(size_mb / 1024, 1),
         })
     return models
 
 
 def download_model(model_key: str = "medium") -> Path:
-    """Download a recommended model from HuggingFace."""
     from huggingface_hub import hf_hub_download
 
     if model_key not in RECOMMENDED_MODELS:
@@ -86,6 +101,7 @@ def download_model(model_key: str = "medium") -> Path:
     console.print(f"\n[bold cyan]Downloading {model_info['name']}[/bold cyan]")
     console.print(f"  Size: {model_info['size']}")
     console.print(f"  RAM needed: {model_info['ram']}")
+    console.print(f"  Context window: {model_info['context']}")
     console.print()
 
     downloaded_path = hf_hub_download(
@@ -100,5 +116,4 @@ def download_model(model_key: str = "medium") -> Path:
 
 
 def download_default_model() -> Path:
-    """Download the default medium model."""
     return download_model("medium")

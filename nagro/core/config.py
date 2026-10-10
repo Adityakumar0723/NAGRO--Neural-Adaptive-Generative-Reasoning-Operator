@@ -19,22 +19,27 @@ class Settings(BaseSettings):
     nagro_image_model: str = "stabilityai/sdxl-turbo"
     nagro_embedding_model: str = "all-MiniLM-L6-v2"
 
-    # Inference Settings
-    nagro_context_length: int = 4096
-    nagro_max_tokens: int = 2048
+    # Inference Settings — Opus 5.5 level context window
+    nagro_context_length: int = 200000  # 200K tokens — matches top-tier models
+    nagro_max_tokens: int = 16384       # 16K output tokens
     nagro_gpu_layers: int = 0
     nagro_threads: int = 4
+    nagro_batch_size: int = 512
     nagro_temperature: float = 0.7
+    nagro_top_p: float = 0.9
+    nagro_top_k: int = 40
+    nagro_repeat_penalty: float = 1.1
 
     # Image Generation
     nagro_image_steps: int = 4
-    nagro_image_width: int = 512
-    nagro_image_height: int = 512
+    nagro_image_width: int = 1024
+    nagro_image_height: int = 1024
 
     # Server
     nagro_host: str = "0.0.0.0"
     nagro_port: int = 8000
     nagro_debug: bool = True
+    nagro_max_upload_mb: int = 100
 
     # Security
     nagro_secret_key: str = "change-this-to-a-random-secret-key"

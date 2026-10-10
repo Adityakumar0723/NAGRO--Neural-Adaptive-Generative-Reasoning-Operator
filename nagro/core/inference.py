@@ -1,4 +1,9 @@
-"""NAGRO 4.1 Local Inference Engine — runs LLM entirely on your machine."""
+"""
+NAGRO 4.1 Local Inference Engine — 200K context window, local models only.
+
+Runs LLM entirely on your machine via llama.cpp.
+Supports context lengths up to 200K tokens (model-dependent).
+"""
 
 from __future__ import annotations
 import threading
@@ -27,16 +32,22 @@ def _get_llm():
         if not model_path.exists():
             raise FileNotFoundError(
                 f"Model not found at {model_path}. "
-                f"Run 'python -m nagro.core.model_manager' to download a model, "
+                f"Run 'python download_model.py' to download a model, "
                 f"or place a GGUF model file in the '{settings.nagro_model_path}' directory."
             )
 
+        # Determine actual context length (capped by model's trained max)
+        ctx_len = min(settings.nagro_context_length, 200000)
+
         _llm_instance = Llama(
             model_path=str(model_path),
-            n_ctx=settings.nagro_context_length,
+            n_ctx=ctx_len,
             n_threads=settings.nagro_threads,
             n_gpu_layers=settings.nagro_gpu_layers,
+            n_batch=settings.nagro_batch_size,
             verbose=False,
+            use_mmap=True,
+            use_mlock=False,
         )
         return _llm_instance
 
@@ -62,6 +73,9 @@ def generate(
         messages=messages,
         max_tokens=max_tokens,
         temperature=temperature,
+        top_p=settings.nagro_top_p,
+        top_k=settings.nagro_top_k,
+        repeat_penalty=settings.nagro_repeat_penalty,
         stop=stop or [],
     )
 
@@ -74,7 +88,7 @@ def generate_with_history(
     max_tokens: int | None = None,
     temperature: float | None = None,
 ) -> str:
-    """Generate a response with conversation history."""
+    """Generate a response with full conversation history."""
     llm = _get_llm()
     max_tokens = max_tokens or settings.nagro_max_tokens
     temperature = temperature if temperature is not None else settings.nagro_temperature
@@ -88,6 +102,9 @@ def generate_with_history(
         messages=full_messages,
         max_tokens=max_tokens,
         temperature=temperature,
+        top_p=settings.nagro_top_p,
+        top_k=settings.nagro_top_k,
+        repeat_penalty=settings.nagro_repeat_penalty,
     )
 
     return response["choices"][0]["message"]["content"]
@@ -113,6 +130,9 @@ def generate_stream(
         messages=messages,
         max_tokens=max_tokens,
         temperature=temperature,
+        top_p=settings.nagro_top_p,
+        top_k=settings.nagro_top_k,
+        repeat_penalty=settings.nagro_repeat_penalty,
         stream=True,
     )
 
@@ -129,7 +149,7 @@ def generate_stream_with_history(
     max_tokens: int | None = None,
     temperature: float | None = None,
 ) -> Iterator[str]:
-    """Stream tokens with conversation history."""
+    """Stream tokens with full conversation history."""
     llm = _get_llm()
     max_tokens = max_tokens or settings.nagro_max_tokens
     temperature = temperature if temperature is not None else settings.nagro_temperature
@@ -143,6 +163,9 @@ def generate_stream_with_history(
         messages=full_messages,
         max_tokens=max_tokens,
         temperature=temperature,
+        top_p=settings.nagro_top_p,
+        top_k=settings.nagro_top_k,
+        repeat_penalty=settings.nagro_repeat_penalty,
         stream=True,
     )
 
@@ -153,13 +176,36 @@ def generate_stream_with_history(
             yield content
 
 
+def count_tokens(text: str) -> int:
+    """Count tokens in text using the loaded model's tokenizer."""
+    try:
+        llm = _get_llm()
+        return len(llm.tokenize(text.encode("utf-8")))
+    except Exception:
+        return len(text) // 4 + 1
+
+
 def is_model_loaded() -> bool:
-    """Check if a model is currently loaded."""
     return _llm_instance is not None
 
 
 def unload_model():
-    """Unload the current model to free memory."""
     global _llm_instance
     with _lock:
         _llm_instance = None
+
+
+def get_model_info() -> dict:
+    """Get information about the loaded model."""
+    if not is_model_loaded():
+        return {"loaded": False}
+
+    llm = _llm_instance
+    return {
+        "loaded": True,
+        "context_length": settings.nagro_context_length,
+        "max_tokens": settings.nagro_max_tokens,
+        "gpu_layers": settings.nagro_gpu_layers,
+        "threads": settings.nagro_threads,
+        "batch_size": settings.nagro_batch_size,
+    }

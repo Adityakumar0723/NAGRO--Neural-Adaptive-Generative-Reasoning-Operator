@@ -1,6 +1,7 @@
 # ============================================
 # NAGRO 4.1 - Fully Self-Built Dependencies
 # No external API providers. Everything runs locally.
+# 200K context window. Opus-level capabilities.
 # ============================================
 
 # Core Framework
@@ -9,6 +10,7 @@ uvicorn[standard]==0.34.0
 pydantic==2.10.3
 pydantic-settings==2.7.0
 python-dotenv==1.0.1
+websockets==14.1
 
 # Local LLM Inference (runs on YOUR machine)
 llama-cpp-python==0.3.4
@@ -38,6 +40,7 @@ python-multipart==0.0.18
 aiofiles==24.1.0
 jinja2==3.1.5
 sse-starlette==2.2.1
+psutil==6.1.1
 
 # Testing
 pytest==8.3.4

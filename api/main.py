@@ -1,4 +1,4 @@
-"""NAGRO 4.1 — Fully Self-Built FastAPI Application."""
+"""NAGRO 4.1 — Fully Self-Built FastAPI Application. 200K context, zero APIs."""
 
 from __future__ import annotations
 from contextlib import asynccontextmanager
@@ -11,24 +11,30 @@ from fastapi.responses import FileResponse
 from nagro.core.config import settings
 from nagro.core.engine import NAGROEngine
 from nagro.core.model_manager import is_model_downloaded
+from nagro.core.system_monitor import SystemMonitor
+from nagro.core.plugin_system import PluginManager
 from api.routes.chat import router as chat_router
 from api.routes.image import router as image_router
 from api.routes.code import router as code_router
 from api.routes.research import router as research_router
-
-
-engine: NAGROEngine | None = None
+from api.routes.files import router as files_router
+from api.routes.websocket import router as ws_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global engine
     engine = NAGROEngine()
+    monitor = SystemMonitor()
+    plugins = PluginManager()
+    plugins.load_all()
+
     app.state.engine = engine
+    app.state.monitor = monitor
+    app.state.plugins = plugins
 
-    model_status = "Ready" if is_model_downloaded() else "No model — run: python download_model.py"
+    model_status = "Ready" if is_model_downloaded() else "Run: python download_model.py"
 
-    print(f"\n{'='*55}")
+    print(f"\n{'='*60}")
     print(f"  ███╗   ██╗ █████╗  ██████╗ ██████╗  ██████╗ ")
     print(f"  ████╗  ██║██╔══██╗██╔════╝ ██╔══██╗██╔═══██╗")
     print(f"  ██╔██╗ ██║███████║██║  ███╗██████╔╝██║   ██║")
@@ -39,18 +45,30 @@ async def lifespan(app: FastAPI):
     print(f"  Version 4.1 — Neural Adaptive Generative")
     print(f"  Reasoning Operator")
     print(f"")
-    print(f"  Inference : 100% Local (No External APIs)")
-    print(f"  LLM Model: {settings.nagro_llm_model}")
-    print(f"  Status   : {model_status}")
-    print(f"  Web UI   : http://localhost:{settings.nagro_port}")
-    print(f"{'='*55}\n")
+    print(f"  Inference    : 100% Local (Zero External APIs)")
+    print(f"  Context      : {settings.nagro_context_length:,} tokens (200K)")
+    print(f"  Max Output   : {settings.nagro_max_tokens:,} tokens")
+    print(f"  LLM Model    : {settings.nagro_llm_model}")
+    print(f"  Image Model  : {settings.nagro_image_model}")
+    print(f"  GPU Layers   : {settings.nagro_gpu_layers}")
+    print(f"  Model Status : {model_status}")
+    print(f"  Plugins      : {len(plugins.list_plugins())} loaded")
+    print(f"  Web UI       : http://localhost:{settings.nagro_port}")
+    print(f"  WebSocket    : ws://localhost:{settings.nagro_port}/ws/chat")
+    print(f"  API Docs     : http://localhost:{settings.nagro_port}/docs")
+    print(f"{'='*60}\n")
     yield
     print("\nNAGRO 4.1 shutting down...")
 
 
 app = FastAPI(
     title="NAGRO 4.1",
-    description="Neural Adaptive Generative Reasoning Operator — Fully self-built AI platform. No external APIs.",
+    description=(
+        "Neural Adaptive Generative Reasoning Operator — "
+        "Fully self-built AI platform. 200K context. Zero external APIs. "
+        "Advanced reasoning, coding, research, image generation, agentic tasks, "
+        "RAG, file processing, and more."
+    ),
     version="4.1.0",
     lifespan=lifespan,
 )
@@ -63,11 +81,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(chat_router, prefix="/api/v1", tags=["Chat"])
-app.include_router(image_router, prefix="/api/v1", tags=["Image"])
+# Register all routes
+app.include_router(chat_router, prefix="/api/v1", tags=["Chat & Agent"])
+app.include_router(image_router, prefix="/api/v1", tags=["Image Generation"])
 app.include_router(code_router, prefix="/api/v1", tags=["Code"])
 app.include_router(research_router, prefix="/api/v1", tags=["Research"])
+app.include_router(files_router, prefix="/api/v1", tags=["Files & Code Analysis"])
+app.include_router(ws_router, tags=["WebSocket"])
 
+# Static files
 app.mount("/css", StaticFiles(directory="web/css"), name="css")
 app.mount("/js", StaticFiles(directory="web/js"), name="js")
 app.mount("/assets", StaticFiles(directory="web/assets"), name="assets")
@@ -84,7 +106,9 @@ async def health():
         "status": "operational",
         "model": "NAGRO 4.1",
         "version": "4.1.0",
-        "inference": "local",
+        "inference": "100% local",
+        "context_length": settings.nagro_context_length,
+        "max_output_tokens": settings.nagro_max_tokens,
         "external_apis": "none",
     }
 
@@ -101,4 +125,43 @@ async def list_models():
         "downloaded": list_available_models(),
         "recommended": RECOMMENDED_MODELS,
         "active": settings.nagro_llm_model,
+        "context_length": settings.nagro_context_length,
     }
+
+
+@app.get("/api/v1/system")
+async def system_status():
+    """Full system status — resources, performance, GPU, model info."""
+    monitor = app.state.monitor
+    return monitor.get_full_report()
+
+
+@app.get("/api/v1/plugins")
+async def list_plugins():
+    """List loaded plugins."""
+    return {"plugins": app.state.plugins.list_plugins()}
+
+
+@app.get("/api/v1/memory/stats")
+async def memory_stats():
+    """Get persistent memory statistics."""
+    from nagro.core.memory_store import MemoryStore
+    store = MemoryStore()
+    return store.get_stats()
+
+
+@app.get("/api/v1/memory/conversations")
+async def list_saved_conversations():
+    """List saved conversations from persistent memory."""
+    from nagro.core.memory_store import MemoryStore
+    store = MemoryStore()
+    return {"conversations": store.list_conversations()}
+
+
+@app.post("/api/v1/benchmark")
+async def run_benchmark():
+    """Run the NAGRO benchmark suite."""
+    from nagro.core.benchmarks import run_benchmarks
+    engine = app.state.engine
+    results = await run_benchmarks(engine)
+    return results
