@@ -132,6 +132,10 @@ async def chat_completions(request: OpenAIChatRequest, req: Request):
             logger.info(f">>> msg role={msg.role} content_len={len(msg.content or '')}")
             if msg.role == "system":
                 system_prompt = (msg.content or "")[:50000]
+                logger.info(f">>> SYSTEM PROMPT START >>>")
+                for i in range(0, min(len(system_prompt), 4000), 500):
+                    logger.info(f">>> SYS[{i}]: {system_prompt[i:i+500]}")
+                logger.info(f">>> SYSTEM PROMPT END >>>")
             elif msg.role == "user":
                 user_message = (msg.content or "")[:50000]
 
