@@ -1,7 +1,7 @@
-"""Math agent for NAGRO 4.1 - Mathematical problem solving."""
+"""Math agent for NAGRO 4.1 — local inference."""
 
 from __future__ import annotations
-from typing import Any, AsyncIterator
+from typing import AsyncIterator
 
 from nagro.agents.base import BaseAgent
 from nagro.core.prompts import MATH_PROMPT
@@ -15,10 +15,8 @@ class MathAgent(BaseAgent):
         self,
         message: str,
         history: list[dict[str, str]],
-        llm_client: Any,
-        llm_type: str,
     ) -> str:
-        enhanced_message = (
+        enhanced = (
             f"{message}\n\n"
             "Solve this step by step:\n"
             "1. Understand what is being asked\n"
@@ -27,20 +25,22 @@ class MathAgent(BaseAgent):
             "4. Verify the answer\n"
             "5. Provide the final answer clearly marked"
         )
-        messages = history + [{"role": "user", "content": enhanced_message}]
-        return await self._call_llm(llm_client, llm_type, messages)
+        messages = history + [{"role": "user", "content": enhanced}]
+        try:
+            return self._generate(messages)
+        except FileNotFoundError:
+            return self._fallback_response(message)
 
     async def execute_stream(
         self,
         message: str,
         history: list[dict[str, str]],
-        llm_client: Any,
-        llm_type: str,
     ) -> AsyncIterator[str]:
-        enhanced_message = (
-            f"{message}\n\n"
-            "Solve this step by step with clear working."
+        enhanced = (
+            f"{message}\n\nSolve this step by step with clear working."
         )
-        messages = history + [{"role": "user", "content": enhanced_message}]
-        async for chunk in self._call_llm_stream(llm_client, llm_type, messages):
-            yield chunk
+        try:
+            for chunk in self._generate_stream(enhanced):
+                yield chunk
+        except FileNotFoundError:
+            yield self._fallback_response(message)

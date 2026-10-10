@@ -1,9 +1,9 @@
-"""NAGRO 4.1 configuration management."""
+"""NAGRO 4.1 configuration — fully self-built, no external APIs."""
 
 from __future__ import annotations
 from pydantic_settings import BaseSettings
 from pydantic import Field
-from typing import Optional
+from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -13,19 +13,23 @@ class Settings(BaseSettings):
     model_name: str = "NAGRO 4.1"
     model_version: str = "4.1.0"
 
-    # LLM Provider
-    nagro_llm_provider: str = Field(default="anthropic")
-    anthropic_api_key: Optional[str] = None
-    openai_api_key: Optional[str] = None
-    groq_api_key: Optional[str] = None
+    # Local Model Paths
+    nagro_model_path: str = "models/"
+    nagro_llm_model: str = "mistral-7b-instruct-v0.3.Q4_K_M.gguf"
+    nagro_image_model: str = "stabilityai/sdxl-turbo"
+    nagro_embedding_model: str = "all-MiniLM-L6-v2"
+
+    # Inference Settings
+    nagro_context_length: int = 4096
+    nagro_max_tokens: int = 2048
+    nagro_gpu_layers: int = 0
+    nagro_threads: int = 4
+    nagro_temperature: float = 0.7
 
     # Image Generation
-    nagro_image_provider: str = Field(default="openai")
-    stability_api_key: Optional[str] = None
-    replicate_api_key: Optional[str] = None
-
-    # Web Search
-    serper_api_key: Optional[str] = None
+    nagro_image_steps: int = 4
+    nagro_image_width: int = 512
+    nagro_image_height: int = 512
 
     # Server
     nagro_host: str = "0.0.0.0"
@@ -34,27 +38,14 @@ class Settings(BaseSettings):
 
     # Security
     nagro_secret_key: str = "change-this-to-a-random-secret-key"
-    nagro_api_key: Optional[str] = None
 
-    # Rate Limiting
-    nagro_rate_limit: int = 60
-    nagro_rate_window: int = 60
+    @property
+    def llm_model_path(self) -> Path:
+        return Path(self.nagro_model_path) / self.nagro_llm_model
 
-    def get_llm_api_key(self) -> str | None:
-        providers = {
-            "anthropic": self.anthropic_api_key,
-            "openai": self.openai_api_key,
-            "groq": self.groq_api_key,
-        }
-        return providers.get(self.nagro_llm_provider)
-
-    def get_image_api_key(self) -> str | None:
-        providers = {
-            "openai": self.openai_api_key,
-            "stability": self.stability_api_key,
-            "replicate": self.replicate_api_key,
-        }
-        return providers.get(self.nagro_image_provider)
+    @property
+    def models_dir(self) -> Path:
+        return Path(self.nagro_model_path)
 
 
 settings = Settings()

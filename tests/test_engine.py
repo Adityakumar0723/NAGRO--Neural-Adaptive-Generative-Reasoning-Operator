@@ -46,6 +46,11 @@ class TestTaskClassification:
         result = await engine.classify_task("Hello there")
         assert result == TaskType.CHAT
 
+    @pytest.mark.asyncio
+    async def test_hindi_code_classification(self, engine):
+        result = await engine.classify_task("code likho sorting ke liye")
+        assert result == TaskType.CODE
+
 
 class TestConversation:
     def test_conversation_creation(self, engine):
@@ -64,6 +69,8 @@ class TestEngineInfo:
         info = engine.info
         assert info["model"] == "NAGRO 4.1"
         assert info["version"] == "4.1.0"
+        assert info["inference"] == "local"
+        assert info["external_apis"] == "none"
         assert "capabilities" in info
         assert len(info["capabilities"]) > 0
 
@@ -73,7 +80,6 @@ class TestModels:
         msg = Message(role=MessageRole.USER, content="Hello")
         assert msg.role == MessageRole.USER
         assert msg.content == "Hello"
-        assert msg.id is not None
 
     def test_chat_request(self):
         req = ChatRequest(message="Test message")

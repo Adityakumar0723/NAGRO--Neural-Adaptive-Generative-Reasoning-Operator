@@ -1,10 +1,9 @@
-"""Image generation agent for NAGRO 4.1."""
+"""Image generation agent for NAGRO 4.1 — local Stable Diffusion, no APIs."""
 
 from __future__ import annotations
-from typing import Any, AsyncIterator
+from typing import AsyncIterator
 
 from nagro.agents.base import BaseAgent
-from nagro.core.config import settings
 
 
 class ImageAgent(BaseAgent):
@@ -12,121 +11,73 @@ class ImageAgent(BaseAgent):
         super().__init__(
             "image",
             "You are NAGRO 4.1's image generation specialist. "
-            "Help users create stunning visuals by refining their prompts "
-            "and generating high-quality images."
+            "You generate images locally using Stable Diffusion. "
+            "No external APIs needed — everything runs on the user's machine."
         )
 
     async def execute(
         self,
         message: str,
         history: list[dict[str, str]],
-        llm_client: Any,
-        llm_type: str,
     ) -> str:
-        image_result = await self._generate_image(message)
-        if image_result.get("success"):
-            urls = image_result["urls"]
-            url_list = "\n".join(f"- {url}" for url in urls)
-            response = (
-                f"🎨 **NAGRO 4.1 - Image Generated Successfully**\n\n"
+        result = self._generate_image(message)
+
+        if result.get("success"):
+            return (
+                f"**NAGRO 4.1 — Image Generated Successfully**\n\n"
                 f"**Prompt:** {message}\n\n"
-                f"**Generated Images:**\n{url_list}\n\n"
+                f"**Saved to:** `{result['file_path']}`\n"
+                f"**Resolution:** {result['width']}x{result['height']}\n\n"
+                f"![Generated Image](data:image/png;base64,{result['base64'][:100]}...)\n\n"
+                f"*Generated locally using Stable Diffusion. No external APIs used.*"
             )
-            if image_result.get("revised_prompt"):
-                response += f"**Enhanced Prompt:** {image_result['revised_prompt']}\n"
-            return response
 
-        return await self._text_response(message, history, llm_client, llm_type)
+        error = result.get("error", "Unknown error")
+        return await self._text_fallback(message, history, error)
 
-    async def _text_response(
+    async def _text_fallback(
         self,
         message: str,
         history: list[dict[str, str]],
-        llm_client: Any,
-        llm_type: str,
+        error: str,
     ) -> str:
+        """When image model isn't available, provide a detailed text description."""
         enhanced = (
-            f"The user wants to generate an image. "
-            f"No image API is configured, so help them refine their prompt "
-            f"and explain what the image would look like.\n\n"
+            f"The user wants to generate an image but the image model is not loaded.\n"
+            f"Error: {error}\n\n"
             f"User's request: {message}\n\n"
             f"Provide:\n"
             f"1. An enhanced, detailed prompt for image generation\n"
             f"2. A vivid text description of what the image would look like\n"
             f"3. Suggestions for style, lighting, composition\n"
-            f"4. Note that they need to configure an image API key to generate actual images"
+            f"4. Instructions to set up image generation:\n"
+            f"   - Run: pip install diffusers torch\n"
+            f"   - The image model will auto-download on first use (~2 GB)"
         )
         messages = history + [{"role": "user", "content": enhanced}]
-        return await self._call_llm(llm_client, llm_type, messages)
-
-    async def _generate_image(self, prompt: str) -> dict:
-        provider = settings.nagro_image_provider
-
-        if provider == "openai" and settings.openai_api_key:
-            return await self._generate_openai(prompt)
-        elif provider == "stability" and settings.stability_api_key:
-            return await self._generate_stability(prompt)
-        elif provider == "replicate" and settings.replicate_api_key:
-            return await self._generate_replicate(prompt)
-
-        return {"success": False, "error": "No image generation API configured"}
-
-    async def _generate_openai(self, prompt: str) -> dict:
         try:
-            import openai
-            client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
-            response = await client.images.generate(
-                model="dall-e-3",
-                prompt=prompt,
-                size="1024x1024",
-                quality="standard",
-                n=1,
+            return self._generate(messages)
+        except FileNotFoundError:
+            return (
+                f"**NAGRO 4.1 — Image Generation Setup Needed**\n\n"
+                f"**Your Prompt:** {message}\n\n"
+                f"To generate images locally, install PyTorch and Diffusers:\n"
+                f"```bash\n"
+                f"pip install torch diffusers transformers accelerate\n"
+                f"```\n\n"
+                f"The image model (~2 GB) will download automatically on first use.\n"
+                f"Everything runs on your machine — no API keys needed."
             )
+
+    def _generate_image(self, prompt: str) -> dict:
+        """Generate image using local Stable Diffusion."""
+        try:
+            from nagro.core.image_engine import generate_image
+            return generate_image(prompt=prompt)
+        except ImportError:
             return {
-                "success": True,
-                "urls": [img.url for img in response.data],
-                "revised_prompt": response.data[0].revised_prompt,
+                "success": False,
+                "error": "Image dependencies not installed. Run: pip install torch diffusers transformers accelerate",
             }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-    async def _generate_stability(self, prompt: str) -> dict:
-        try:
-            import httpx
-            async with httpx.AsyncClient(timeout=60) as client:
-                response = await client.post(
-                    "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image",
-                    headers={
-                        "Authorization": f"Bearer {settings.stability_api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "text_prompts": [{"text": prompt, "weight": 1}],
-                        "cfg_scale": 7,
-                        "height": 1024,
-                        "width": 1024,
-                        "steps": 30,
-                        "samples": 1,
-                    },
-                )
-                response.raise_for_status()
-                data = response.json()
-                images = data.get("artifacts", [])
-                return {
-                    "success": True,
-                    "urls": [f"data:image/png;base64,{img['base64']}" for img in images],
-                }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-    async def _generate_replicate(self, prompt: str) -> dict:
-        try:
-            import replicate
-            output = await replicate.async_run(
-                "stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc",
-                input={"prompt": prompt, "width": 1024, "height": 1024},
-            )
-            urls = list(output) if output else []
-            return {"success": True, "urls": urls}
         except Exception as e:
             return {"success": False, "error": str(e)}

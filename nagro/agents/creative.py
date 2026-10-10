@@ -1,7 +1,7 @@
-"""Creative agent for NAGRO 4.1 - Creative writing and content."""
+"""Creative agent for NAGRO 4.1 — local inference."""
 
 from __future__ import annotations
-from typing import Any, AsyncIterator
+from typing import AsyncIterator
 
 from nagro.agents.base import BaseAgent
 from nagro.core.prompts import CREATIVE_PROMPT
@@ -15,21 +15,20 @@ class CreativeAgent(BaseAgent):
         self,
         message: str,
         history: list[dict[str, str]],
-        llm_client: Any,
-        llm_type: str,
     ) -> str:
         messages = history + [{"role": "user", "content": message}]
-        return await self._call_llm(llm_client, llm_type, messages, max_tokens=8192)
+        try:
+            return self._generate(messages, max_tokens=4096)
+        except FileNotFoundError:
+            return self._fallback_response(message)
 
     async def execute_stream(
         self,
         message: str,
         history: list[dict[str, str]],
-        llm_client: Any,
-        llm_type: str,
     ) -> AsyncIterator[str]:
-        messages = history + [{"role": "user", "content": message}]
-        async for chunk in self._call_llm_stream(
-            llm_client, llm_type, messages, max_tokens=8192
-        ):
-            yield chunk
+        try:
+            for chunk in self._generate_stream(message, max_tokens=4096):
+                yield chunk
+        except FileNotFoundError:
+            yield self._fallback_response(message)

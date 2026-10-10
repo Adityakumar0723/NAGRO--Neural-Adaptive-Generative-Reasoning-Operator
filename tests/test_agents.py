@@ -62,3 +62,11 @@ class TestCodingAgent:
         agent = CodingAgent()
         enhanced = agent._enhance_coding_prompt("write a hello world program")
         assert "production-ready" in enhanced.lower()
+
+
+class TestBaseAgent:
+    def test_fallback_response(self):
+        agent = ReasoningAgent()
+        response = agent._fallback_response("test message")
+        assert "Model Not Loaded" in response
+        assert "download_model.py" in response

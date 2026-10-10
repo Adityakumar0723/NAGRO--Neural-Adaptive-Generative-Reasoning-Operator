@@ -1,5 +1,6 @@
 # ============================================
-# NAGRO 4.1 - Dependencies
+# NAGRO 4.1 - Fully Self-Built Dependencies
+# No external API providers. Everything runs locally.
 # ============================================
 
 # Core Framework
@@ -9,26 +10,27 @@ pydantic==2.10.3
 pydantic-settings==2.7.0
 python-dotenv==1.0.1
 
-# LLM Providers
-anthropic==0.40.0
-openai==1.58.1
-groq==0.13.0
+# Local LLM Inference (runs on YOUR machine)
+llama-cpp-python==0.3.4
+huggingface-hub==0.27.1
+tokenizers==0.21.0
 
-# Image Generation
-replicate==1.0.4
-stability-sdk==0.8.2
+# Local Image Generation (Stable Diffusion on YOUR machine)
+diffusers==0.31.0
+transformers==4.47.1
+torch>=2.1.0
+torchvision>=0.16.0
+accelerate==1.2.1
+safetensors==0.4.5
+Pillow==11.0.0
 
-# Web Search & Scraping
+# Web Search (free, no API key needed)
+duckduckgo-search==7.2.1
+
+# Web Scraping (self-built research)
 httpx==0.28.1
 beautifulsoup4==4.12.3
 markdownify==0.14.1
-
-# Memory & Storage
-chromadb==0.5.23
-tiktoken==0.8.0
-
-# Code Execution
-RestrictedPython==7.4
 
 # Utilities
 rich==13.9.4
@@ -36,7 +38,6 @@ python-multipart==0.0.18
 aiofiles==24.1.0
 jinja2==3.1.5
 sse-starlette==2.2.1
-websockets==14.1
 
 # Testing
 pytest==8.3.4
