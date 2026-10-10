@@ -71,7 +71,7 @@ NAGRO 4.1 — Fully Self-Built AI Platform (200K Context)
 │
 ├── RAG Pipeline (Self-Built)
 │   ├── Document Chunking      → Splits docs into searchable pieces
-│   ├── Local Embeddings       → sentence-transformers (MiniLM)
+│   ├── Local Embeddings       → Self-built TF-IDF vectors
 │   ├── Vector Store           → Custom cosine-similarity search
 │   └── Context Retrieval      → Augments prompts with relevant info
 │
@@ -85,7 +85,7 @@ NAGRO 4.1 — Fully Self-Built AI Platform (200K Context)
 │   ├── Reasoning Agent        → Chat, logic, analysis
 │   ├── Coding Agent           → Code generation, debugging, review
 │   ├── Research Agent         → DuckDuckGo search + LLM synthesis
-│   ├── Image Agent            → Local Stable Diffusion (SDXL Turbo)
+│   ├── Image Agent            → Procedural image engine (self-built)
 │   ├── Math Agent             → Step-by-step problem solving
 │   └── Creative Agent         → Writing, poetry, content
 │
@@ -122,7 +122,7 @@ NAGRO 4.1 — Fully Self-Built AI Platform (200K Context)
 | Code Generation | Write, debug, review, optimize any language | **No** |
 | Code Execution | Sandboxed Python + JavaScript (Node.js) | **No** |
 | Code Analysis | AST complexity, security, issue detection | **No** |
-| Image Generation | Stable Diffusion SDXL locally | **No** |
+| Image Generation | Procedural engine (self-built) | **No** |
 | Web Research | DuckDuckGo + LLM synthesis | **No** |
 | Mathematics | Step-by-step with verification | **No** |
 | Creative Writing | Stories, poetry, content | **No** |
