@@ -1,7 +1,7 @@
 /* NAGRO 4.1 — Chat UI */
 (function () {
     const API = '/api/v1';
-    const BACKEND = '';
+    const BACKEND = window.location.hostname === 'localhost' ? '' : 'https://serverless.on-demand.io/apps/nagro';
 
     const $ = (s, p) => (p || document).querySelector(s);
     const $$ = (s, p) => (p || document).querySelectorAll(s);
