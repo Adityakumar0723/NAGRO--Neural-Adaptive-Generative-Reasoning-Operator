@@ -80,7 +80,7 @@ def _call_model(model_key: str, prompt: str, max_tokens: int = 1024,
     })
 
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             if isinstance(data, list) and data:
                 text = data[0].get("generated_text", "")

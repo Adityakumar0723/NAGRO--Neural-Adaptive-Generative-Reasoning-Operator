@@ -864,14 +864,37 @@ class NAGROBrain:
         if not kb:
             kb = find_knowledge(prompt)
 
-        # 3. Try Wikipedia (free, no API key, works on serverless)
+        # 3. If KB has the answer → return IMMEDIATELY (no waiting for network)
+        if kb:
+            if is_explain:
+                return self._make_explanation(kb, prompt)
+            return kb
+
+        # 4. Fuzzy knowledge base match (still fast, no network)
+        fuzzy = self._fuzzy_knowledge(prompt)
+        if fuzzy:
+            if is_explain:
+                return self._make_explanation(fuzzy, prompt)
+            return fuzzy
+
+        # 5. KB doesn't have it → try Wikipedia (free, reliable, 8s timeout)
         wiki = self._wiki_search(prompt)
+        if wiki:
+            topic = self._extract_topic(prompt)
+            return f"## {topic.title()}\n\n{wiki}\n\n---\n*Ask me more about {topic}!*"
 
-        # 4. Try DuckDuckGo web search
+        # 6. Try DuckDuckGo web search
         web_results = self._web_search_multi(prompt)
+        if web_results:
+            return self._compose_answer(prompt, web_results)
 
-        # 5. Compose the best possible answer from all sources
-        return self._compose_best_answer(prompt, kb, wiki, web_results, is_explain)
+        # 7. Try open source models (Mistral, Qwen, Phi)
+        model_answer = self._try_open_source_model(prompt)
+        if model_answer:
+            return model_answer
+
+        # 8. Smart fallback — NEVER says "can't connect"
+        return self._smart_fallback(prompt)
 
     def _wiki_search(self, prompt: str) -> str | None:
         """Search Wikipedia for information. Free, no API key."""

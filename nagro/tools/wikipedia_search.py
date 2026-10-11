@@ -23,7 +23,7 @@ def search_wikipedia(query: str, sentences: int = 8) -> str | None:
             "User-Agent": "NAGRO/4.1 (AI Assistant; educational use)",
             "Accept": "application/json",
         })
-        with urllib.request.urlopen(req, timeout=8) as resp:
+        with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             extract = data.get("extract", "")
             if extract and len(extract) > 50:
