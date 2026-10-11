@@ -19,7 +19,7 @@ class ReasoningAgent(BaseAgent):
         messages = history + [{"role": "user", "content": message}]
         try:
             return self._generate(messages)
-        except FileNotFoundError:
+        except Exception:
             return self._fallback_response(message)
 
     async def execute_stream(
@@ -30,5 +30,5 @@ class ReasoningAgent(BaseAgent):
         try:
             for chunk in self._generate_stream(message):
                 yield chunk
-        except FileNotFoundError:
+        except Exception:
             yield self._fallback_response(message)

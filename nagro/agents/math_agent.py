@@ -28,7 +28,7 @@ class MathAgent(BaseAgent):
         messages = history + [{"role": "user", "content": enhanced}]
         try:
             return self._generate(messages)
-        except FileNotFoundError:
+        except Exception:
             return self._fallback_response(message)
 
     async def execute_stream(
@@ -42,5 +42,5 @@ class MathAgent(BaseAgent):
         try:
             for chunk in self._generate_stream(enhanced):
                 yield chunk
-        except FileNotFoundError:
+        except Exception:
             yield self._fallback_response(message)

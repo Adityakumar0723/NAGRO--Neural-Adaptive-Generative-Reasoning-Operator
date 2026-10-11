@@ -20,7 +20,7 @@ class CodingAgent(BaseAgent):
         messages = history + [{"role": "user", "content": enhanced}]
         try:
             return self._generate(messages, max_tokens=4096)
-        except FileNotFoundError:
+        except Exception:
             return self._fallback_response(message)
 
     async def execute_stream(
@@ -32,7 +32,7 @@ class CodingAgent(BaseAgent):
         try:
             for chunk in self._generate_stream(enhanced, max_tokens=4096):
                 yield chunk
-        except FileNotFoundError:
+        except Exception:
             yield self._fallback_response(message)
 
     def _enhance_coding_prompt(self, message: str) -> str:

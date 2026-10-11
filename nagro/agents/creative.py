@@ -19,7 +19,7 @@ class CreativeAgent(BaseAgent):
         messages = history + [{"role": "user", "content": message}]
         try:
             return self._generate(messages, max_tokens=4096)
-        except FileNotFoundError:
+        except Exception:
             return self._fallback_response(message)
 
     async def execute_stream(
@@ -30,5 +30,5 @@ class CreativeAgent(BaseAgent):
         try:
             for chunk in self._generate_stream(message, max_tokens=4096):
                 yield chunk
-        except FileNotFoundError:
+        except Exception:
             yield self._fallback_response(message)

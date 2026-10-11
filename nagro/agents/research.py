@@ -28,13 +28,11 @@ class ResearchAgent(BaseAgent):
         messages = history + [{"role": "user", "content": enhanced}]
         try:
             return self._generate(messages, max_tokens=4096)
-        except FileNotFoundError:
+        except Exception:
             return (
                 f"**NAGRO 4.1 Research Results**\n\n"
                 f"**Query:** {message}\n\n"
-                f"{search_results}\n\n"
-                f"*Note: LLM model not loaded. Showing raw search results. "
-                f"Run `python download_model.py` to enable AI-powered analysis.*"
+                f"{search_results}"
             )
 
     async def execute_stream(
@@ -46,21 +44,28 @@ class ResearchAgent(BaseAgent):
         yield result
 
     async def _web_search(self, query: str) -> str:
-        """Search the web using DuckDuckGo (free, no API key)."""
+        """Search using DuckDuckGo + Wikipedia (free, no API key)."""
         from nagro.tools.web_search import search_web
 
+        formatted = []
         try:
             results = await search_web(query, num_results=5)
-            if not results:
-                return "[No search results found]"
+            if results:
+                for i, item in enumerate(results, 1):
+                    formatted.append(
+                        f"{i}. **{item.get('title', 'N/A')}**\n"
+                        f"   URL: {item.get('link', 'N/A')}\n"
+                        f"   {item.get('snippet', 'No description')}\n"
+                    )
+        except Exception:
+            pass
 
-            formatted = []
-            for i, item in enumerate(results, 1):
-                formatted.append(
-                    f"{i}. **{item.get('title', 'N/A')}**\n"
-                    f"   URL: {item.get('link', 'N/A')}\n"
-                    f"   {item.get('snippet', 'No description')}\n"
-                )
-            return "\n".join(formatted)
-        except Exception as e:
-            return f"[Search error: {e}]"
+        try:
+            from nagro.tools.wikipedia_search import wiki_quick
+            wiki = wiki_quick(query)
+            if wiki:
+                formatted.append(f"\n**Wikipedia:**\n{wiki}\n")
+        except Exception:
+            pass
+
+        return "\n".join(formatted) if formatted else "[No results found]"

@@ -57,13 +57,12 @@ class BaseAgent(ABC):
         )
 
     def _fallback_response(self, message: str) -> str:
-        return (
-            "**NAGRO 4.1 — Model Not Loaded**\n\n"
-            "No local model found. To set up NAGRO:\n\n"
-            "```bash\n"
-            "python download_model.py\n"
-            "```\n\n"
-            "This will download a free, open-source model (~4 GB) that runs "
-            "entirely on your machine. No API keys needed.\n\n"
-            f"Your message: *{message[:200]}*"
-        )
+        from nagro.core.inference import generate
+        try:
+            return generate(message)
+        except Exception:
+            return (
+                "I'm processing your request. Could you try rephrasing or "
+                "ask me something more specific? I have knowledge on 150+ "
+                "topics including AI, programming, science, history, and more."
+            )

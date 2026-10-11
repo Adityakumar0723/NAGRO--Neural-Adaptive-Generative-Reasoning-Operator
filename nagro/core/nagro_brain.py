@@ -841,6 +841,7 @@ class NAGROBrain:
     def _handle_general(self, prompt: str) -> str:
         p = prompt.lower()
 
+        # 1. Check user-taught knowledge first
         for term, info in self._user_taught.items():
             if term in p:
                 return (
@@ -854,10 +855,30 @@ class NAGROBrain:
                                            "kya hai", "what is", "what are", "define",
                                            "how does", "how do", "why is", "why do"])
 
+        # 2. Check NAGRO's built-in knowledge bases (both KNOWLEDGE and WORLD_KNOWLEDGE)
         kb = self._check_knowledge_base(prompt)
         if not kb:
             kb = find_knowledge(prompt)
 
+        # 3. Try Wikipedia (free, no API key, works on serverless)
+        wiki = self._wiki_search(prompt)
+
+        # 4. Try DuckDuckGo web search
+        web_results = self._web_search_multi(prompt)
+
+        # 5. Compose the best possible answer from all sources
+        return self._compose_best_answer(prompt, kb, wiki, web_results, is_explain)
+
+    def _wiki_search(self, prompt: str) -> str | None:
+        """Search Wikipedia for information. Free, no API key."""
+        try:
+            from nagro.tools.wikipedia_search import wiki_quick
+            return wiki_quick(prompt)
+        except Exception:
+            return None
+
+    def _web_search_multi(self, prompt: str) -> list:
+        """Try web search with multiple query strategies."""
         queries = self._make_queries(prompt)
         all_results = []
         for q in queries:
@@ -866,28 +887,77 @@ class NAGROBrain:
                 all_results.extend(results)
                 if len(all_results) >= 8:
                     break
+        return all_results
 
-        if kb and all_results:
-            extra_pts = self._extract_unique_sentences(all_results, prompt, limit=5)
-            if extra_pts:
-                return kb + "\n\n**Latest Information:**\n\n" + "\n\n".join(extra_pts)
+    def _compose_best_answer(self, prompt: str, kb: str | None,
+                              wiki: str | None, web_results: list,
+                              is_explain: bool) -> str:
+        """Compose the best answer from all available sources."""
+        topic = self._extract_topic(prompt)
+
+        # Case 1: Knowledge base + web results = comprehensive answer
+        if kb and web_results:
+            extra = self._extract_unique_sentences(web_results, prompt, limit=5)
+            if extra:
+                return kb + "\n\n**Latest Information:**\n\n" + "\n\n".join(extra)
             return kb
 
-        if all_results:
-            return self._compose_answer(prompt, all_results)
+        # Case 2: Knowledge base + Wikipedia = rich answer
+        if kb and wiki:
+            wiki_extra = self._extract_wiki_additions(kb, wiki)
+            if wiki_extra:
+                return kb + "\n\n**Additional Details:**\n\n" + wiki_extra
+            return kb
 
+        # Case 3: Web results available (DuckDuckGo worked)
+        if web_results:
+            composed = self._compose_answer(prompt, web_results)
+            if wiki:
+                return composed + "\n\n---\n\n" + wiki
+            return composed
+
+        # Case 4: Only knowledge base
         if kb:
             if is_explain:
                 return self._make_explanation(kb, prompt)
             return kb
 
+        # Case 5: Only Wikipedia (most reliable fallback for deployed server)
+        if wiki:
+            header = f"## {topic.title()}\n\n"
+            footer = (
+                f"\n\n---\n"
+                f"**Want to know more?** Ask me:\n"
+                f"- \"Tell me more about {topic}\"\n"
+                f"- \"How does {topic} work?\"\n"
+                f"- \"Give examples of {topic}\""
+            )
+            return header + wiki + footer
+
+        # Case 6: Fuzzy knowledge base match
         multi_kb = self._fuzzy_knowledge(prompt)
         if multi_kb:
             if is_explain:
                 return self._make_explanation(multi_kb, prompt)
             return multi_kb
 
+        # Case 7: Smart contextual fallback — NEVER say "can't connect"
         return self._smart_fallback(prompt)
+
+    def _extract_wiki_additions(self, kb: str, wiki: str) -> str | None:
+        """Extract new sentences from wiki that aren't already in kb."""
+        kb_lower = kb.lower()
+        wiki_sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', wiki) if len(s.strip()) > 30]
+        new_sents = []
+        for s in wiki_sents:
+            words = set(s.lower().split())
+            sig = {w for w in words if len(w) > 4}
+            overlap = sum(1 for w in sig if w in kb_lower)
+            if overlap < len(sig) * 0.5 and len(new_sents) < 5:
+                new_sents.append(s)
+        if new_sents:
+            return "\n\n".join(new_sents)
+        return None
 
     def _make_explanation(self, content: str, prompt: str) -> str:
         topic = self._extract_topic(prompt)
@@ -1036,60 +1106,63 @@ class NAGROBrain:
 
     def _smart_fallback(self, prompt: str) -> str:
         topic = self._extract_topic(prompt)
-        response = f"## {topic.title()}\n\n"
-        response += f"{topic.capitalize()} is a notable and multifaceted topic. Here's what I can share:\n\n"
-
         p = prompt.lower()
-        if any(w in p for w in ["company", "startup", "founded", "ceo", "valuation"]):
+
+        # Last resort: try Wikipedia one more time with cleaned topic
+        try:
+            from nagro.tools.wikipedia_search import search_wikipedia
+            wiki = search_wikipedia(topic)
+            if wiki and len(wiki) > 100:
+                return f"## {topic.title()}\n\n{wiki}\n\n---\n*Ask me more about {topic} or any related topic!*"
+        except Exception:
+            pass
+
+        response = f"## {topic.title()}\n\n"
+
+        if any(w in p for w in ["how to", "tutorial", "guide", "steps", "learn", "kaise"]):
             response += (
-                f"**About {topic.title()}:**\n"
-                f"This appears to be a question about a company or organization. "
-                f"I have detailed knowledge about major tech companies, AI labs, and startups. "
-                f"Try asking specifically about companies like Google, Apple, Microsoft, OpenAI, Anthropic, Meta, Tesla, SpaceX, etc.\n\n"
-            )
-        elif any(w in p for w in ["person", "who is", "biography", "born", "life"]):
-            response += (
-                f"This appears to be a question about a person. "
-                f"I have knowledge about major figures in technology, science, and history. "
-                f"Try asking about specific well-known figures.\n\n"
-            )
-        elif any(w in p for w in ["how to", "tutorial", "guide", "steps", "learn"]):
-            response += (
-                f"**Getting Started with {topic.title()}:**\n"
-                f"1. Start with the fundamentals and core concepts\n"
-                f"2. Practice with hands-on projects and exercises\n"
-                f"3. Read documentation and reference materials\n"
-                f"4. Join communities and forums for support\n"
-                f"5. Build real-world projects to solidify understanding\n\n"
-                f"If this is a programming topic, I can write code examples! Just ask.\n\n"
+                f"**Getting Started with {topic.title()}:**\n\n"
+                f"1. **Learn the fundamentals** — Start with core concepts and terminology\n"
+                f"2. **Hands-on practice** — Apply what you learn through projects and exercises\n"
+                f"3. **Read documentation** — Official docs are always the best reference\n"
+                f"4. **Join communities** — Stack Overflow, Reddit, Discord groups for support\n"
+                f"5. **Build real projects** — Nothing beats practical experience\n\n"
+                f"I can help with specific questions, code examples, or explanations. Just ask!\n"
             )
         elif any(w in p for w in ["compare", "vs", "versus", "difference", "better"]):
             response += (
-                f"To compare these properly, consider:\n"
-                f"- **Purpose:** What problem does each solve?\n"
-                f"- **Performance:** Speed, efficiency, scalability\n"
-                f"- **Ecosystem:** Community, tools, libraries\n"
-                f"- **Learning Curve:** Ease of adoption\n"
-                f"- **Use Cases:** Where each excels\n\n"
-                f"Ask me to compare specific technologies, languages, or tools and I'll give detailed analysis.\n\n"
+                f"Here's how to think about this comparison:\n\n"
+                f"| Aspect | Consideration |\n"
+                f"|--------|---------------|\n"
+                f"| **Purpose** | What problem does each solve? |\n"
+                f"| **Performance** | Speed, efficiency, scalability |\n"
+                f"| **Ecosystem** | Community size, tools, libraries |\n"
+                f"| **Learning Curve** | Ease of getting started |\n"
+                f"| **Use Cases** | Where each one excels |\n\n"
+                f"Ask me to compare specific technologies and I'll give a detailed breakdown!\n"
             )
-        elif any(w in p for w in ["news", "latest", "recent", "update", "trending"]):
+        elif any(w in p for w in ["who is", "who was", "person", "biography", "born"]):
             response += (
-                f"I don't have access to live news feeds right now, but I have comprehensive knowledge about:\n\n"
-                f"- **AI Companies:** OpenAI, Anthropic, Google DeepMind, Meta AI, DeepSeek, MiniMax, Mistral\n"
-                f"- **Tech Industry:** Apple, Google, Microsoft, Amazon, Tesla, SpaceX\n"
-                f"- **Trends:** AI/ML advances, cloud computing, blockchain, cybersecurity\n\n"
-                f"Ask me about any specific company or technology for detailed information.\n\n"
+                f"I have knowledge about notable figures in technology, science, business, and history. "
+                f"I can tell you about people like Elon Musk, Sundar Pichai, Satya Nadella, Albert Einstein, "
+                f"Isaac Newton, Jeff Bezos, Mark Zuckerberg, and many more.\n\n"
+                f"Ask me about a specific person for detailed information!\n"
             )
         else:
             response += (
-                f"I have built-in knowledge covering 150+ topics including:\n\n"
-                f"**Technology:** AI, Machine Learning, Deep Learning, LLMs, Programming, Web Development\n"
-                f"**Science:** Physics, Chemistry, Biology, Mathematics, Astronomy\n"
-                f"**Companies:** OpenAI, Anthropic, Google, DeepSeek, Tesla, SpaceX\n"
-                f"**General:** History, Economics, Psychology, Health, Climate\n\n"
-                f"Ask me specifically about any of these topics for a detailed answer! "
-                f"I can also **write code**, **solve math**, and **create stories/poems**.\n\n"
+                f"I have built-in knowledge on **150+ topics** covering:\n\n"
+                f"- **AI & Tech:** OpenAI, Anthropic, Google, DeepSeek, LLMs, ML, Deep Learning\n"
+                f"- **Programming:** Python, JavaScript, TypeScript, Java, C++, Rust, Go\n"
+                f"- **Web Dev:** React, Next.js, Node.js, APIs, Databases, Docker, Cloud\n"
+                f"- **Science:** Physics, Chemistry, Biology, Math, Astronomy\n"
+                f"- **World:** India, USA, China, Japan, History, Economics, Sports\n"
+                f"- **People:** Elon Musk, Sundar Pichai, Satya Nadella, Einstein, Newton\n\n"
+                f"I can also **write code**, **solve math**, **create stories/poems**, and **research topics**.\n\n"
+                f"Try asking something specific like:\n"
+                f"- \"What is quantum computing?\"\n"
+                f"- \"Explain blockchain\"\n"
+                f"- \"Write a Python binary search\"\n"
+                f"- \"Tell me about ISRO\"\n"
             )
 
         return response.strip()
