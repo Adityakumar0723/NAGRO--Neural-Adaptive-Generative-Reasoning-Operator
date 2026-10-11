@@ -600,6 +600,8 @@ class NAGROBrain:
     def __init__(self):
         self._search = None
         self._conversation_context: list[dict] = []
+        self._user_taught: dict[str, str] = {}
+        self._last_topic: str = ""
 
     @property
     def search(self):
@@ -611,6 +613,14 @@ class NAGROBrain:
     def think(self, prompt: str, system_prompt: str = "", history: list | None = None) -> str:
         if history:
             self._conversation_context = history[-10:]
+
+        teach = self._detect_teaching(prompt)
+        if teach:
+            return teach
+
+        followup = self._detect_followup(prompt)
+        if followup:
+            prompt = followup
 
         task = self._classify(prompt)
         handlers = {
@@ -625,12 +635,114 @@ class NAGROBrain:
         handler = handlers.get(task, self._handle_general)
         response = handler(prompt)
 
+        topic = self._extract_topic(prompt)
+        if topic and len(topic) > 2:
+            self._last_topic = topic
+
         self._conversation_context.append({"role": "user", "content": prompt})
         self._conversation_context.append({"role": "assistant", "content": response[:500]})
         if len(self._conversation_context) > 20:
             self._conversation_context = self._conversation_context[-20:]
 
         return response
+
+    # ── Conversation Intelligence ──
+
+    def _detect_teaching(self, prompt: str) -> str | None:
+        p = prompt.lower().strip()
+        teach_patterns = [
+            (r'^(?:let me (?:tell|explain|teach) you|i(?:\'ll| will) (?:explain|tell you)|listen|note this|remember this|yaad rakh|sun|samjho?)\s*[,:]?\s*(.*)', True),
+            (r'^(?:actually|fyi|did you know|fun fact)\s*[,:]?\s*(.*)', True),
+            (r'^(.+?)\s+(?:means?|is defined as|refers to|matlab|ka matlab|yaani)\s+(.*)', False),
+        ]
+
+        for pattern, is_full in teach_patterns:
+            m = re.match(pattern, p, re.I)
+            if m:
+                if is_full:
+                    info = m.group(1).strip()
+                    if len(info) > 10:
+                        keywords = self._extract_key_phrases(info)
+                        for kw in keywords:
+                            self._user_taught[kw] = info
+                        return (
+                            f"Got it! I've understood what you shared:\n\n"
+                            f"> {prompt.strip()}\n\n"
+                            f"I'll keep this in mind for our conversation. "
+                            f"Feel free to ask me questions about it or tell me more!"
+                        )
+                else:
+                    term = m.group(1).strip()
+                    definition = m.group(2).strip()
+                    if len(definition) > 5:
+                        self._user_taught[term.lower()] = f"{term}: {definition}"
+                        return (
+                            f"Understood! **{term.title()}** — {definition}\n\n"
+                            f"I've noted this. You can ask me about **{term}** anytime in this conversation."
+                        )
+
+        if len(prompt.split()) > 30 and not any(q in p for q in ["?", "what", "how", "why", "when", "where", "who", "explain", "tell me", "batao", "samjhao"]):
+            info = prompt.strip()
+            keywords = self._extract_key_phrases(info)
+            if keywords:
+                for kw in keywords:
+                    self._user_taught[kw] = info
+                return (
+                    f"Thanks for sharing that information! I've understood the key points about "
+                    f"**{', '.join(kw.title() for kw in keywords[:3])}**.\n\n"
+                    f"You can now ask me questions about this, and I'll use what you've shared to answer. "
+                    f"Want me to:\n"
+                    f"- **Summarize** what you told me?\n"
+                    f"- **Explain** a specific part in more detail?\n"
+                    f"- **Answer questions** based on this information?"
+                )
+
+        return None
+
+    def _detect_followup(self, prompt: str) -> str | None:
+        p = prompt.lower().strip()
+
+        followup_phrases = {
+            "tell me more": True, "aur batao": True, "more details": True,
+            "elaborate": True, "explain more": True, "go on": True,
+            "continue": True, "aur": True, "aage batao": True,
+            "keep going": True, "what else": True, "aur kya": True,
+            "detail mein batao": True, "vistar se batao": True,
+        }
+        if p in followup_phrases or any(p.startswith(f) for f in followup_phrases):
+            if self._last_topic:
+                return f"explain {self._last_topic} in more detail"
+
+        ref_patterns = [
+            r"^(?:explain|samjhao|batao)\s+(?:this|that|it|ye|wo|isko|usko)",
+            r"^(?:what|kya)\s+(?:is|hai|does|karta)\s+(?:this|that|it|ye|wo)",
+            r"^(?:iske|uske|iska|uska)\s+(?:baare|bare)\s+(?:mein|me)",
+            r"^(?:tell me about|about)\s+(?:this|that|it)",
+            r"^(?:ye kya hai|wo kya hai|kya hai ye)",
+        ]
+        for pat in ref_patterns:
+            if re.match(pat, p):
+                if self._last_topic:
+                    return f"explain {self._last_topic}"
+
+        for term, info in self._user_taught.items():
+            if term in p:
+                if "?" in p or any(q in p for q in ["what", "explain", "how", "why", "batao", "samjhao", "kya"]):
+                    return f"Based on what you told me: {info}\n\n{prompt}"
+
+        return None
+
+    def _extract_key_phrases(self, text: str) -> list[str]:
+        stop = {"a", "an", "the", "is", "are", "was", "were", "and", "or", "but",
+                "in", "on", "at", "to", "for", "of", "with", "by", "from", "this",
+                "that", "it", "be", "has", "have", "had", "not", "as", "if", "do",
+                "does", "will", "can", "about", "let", "me", "tell", "you", "i",
+                "my", "we", "our", "so", "its", "very", "also", "just", "than",
+                "then", "when", "what", "which", "how", "there", "here", "some"}
+        words = [w.lower().strip(".,;:!?\"'()") for w in text.split()]
+        sig = [w for w in words if w not in stop and len(w) > 3]
+        freq = Counter(sig)
+        return [w for w, _ in freq.most_common(5)]
 
     def think_stream(self, prompt: str, system_prompt: str = "", history: list | None = None) -> Iterator[str]:
         response = self.think(prompt, system_prompt, history)
@@ -726,6 +838,21 @@ class NAGROBrain:
     # ══════════════════════════════════════════════
 
     def _handle_general(self, prompt: str) -> str:
+        p = prompt.lower()
+
+        for term, info in self._user_taught.items():
+            if term in p:
+                return (
+                    f"Based on what you shared earlier:\n\n"
+                    f"> {info[:500]}\n\n"
+                    f"This is what I understood from your explanation. "
+                    f"Would you like me to go deeper into any specific aspect?"
+                )
+
+        is_explain = any(w in p for w in ["explain", "samjhao", "batao", "describe",
+                                           "kya hai", "what is", "what are", "define",
+                                           "how does", "how do", "why is", "why do"])
+
         kb = self._check_knowledge_base(prompt)
 
         queries = self._make_queries(prompt)
@@ -747,13 +874,32 @@ class NAGROBrain:
             return self._compose_answer(prompt, all_results)
 
         if kb:
+            if is_explain:
+                return self._make_explanation(kb, prompt)
             return kb
 
         multi_kb = self._fuzzy_knowledge(prompt)
         if multi_kb:
+            if is_explain:
+                return self._make_explanation(multi_kb, prompt)
             return multi_kb
 
         return self._smart_fallback(prompt)
+
+    def _make_explanation(self, content: str, prompt: str) -> str:
+        topic = self._extract_topic(prompt)
+        header = f"## {topic.title()} — Explained\n\n"
+        simple_intro = (
+            f"Let me break down **{topic}** in a clear and simple way:\n\n"
+        )
+        footer = (
+            f"\n\n---\n"
+            f"**Want to know more?** Ask me:\n"
+            f"- \"Tell me more about {topic}\"\n"
+            f"- \"Give me examples of {topic}\"\n"
+            f"- \"How is {topic} used in real life?\""
+        )
+        return header + simple_intro + content + footer
 
     def _check_knowledge_base(self, prompt: str) -> str | None:
         p = prompt.lower()
@@ -959,9 +1105,9 @@ class NAGROBrain:
 
     def _handle_greeting(self, prompt: str) -> str:
         greetings = [
-            "Hello! How can I help you today? I can answer questions on any topic, write code, solve math, create stories, and much more. Just ask!",
-            "Hey there! What would you like to explore? I'm ready to help with anything.",
-            "Hi! Ask me anything — coding, science, math, history, AI, business, or creative writing. What's on your mind?",
+            "Hello! How can I help you today?\n\nI can:\n- **Answer questions** on any topic (AI, science, history, tech, business...)\n- **Write code** in Python, JavaScript, HTML, SQL and more\n- **Solve math** step by step\n- **Write stories, poems, essays** and creative content\n- **Learn from you** — tell me something and I'll remember it!\n\nJust ask anything!",
+            "Hey there! What would you like to explore?\n\nYou can ask me questions, share information with me, or get help with coding and math. I'm all ears!",
+            "Hi! I'm ready to help. You can:\n- Ask me anything (I know 100+ topics in detail)\n- Teach me something new and I'll learn from you\n- Get code, math solutions, or creative writing\n\nWhat's on your mind?",
         ]
         return random.choice(greetings)
 
