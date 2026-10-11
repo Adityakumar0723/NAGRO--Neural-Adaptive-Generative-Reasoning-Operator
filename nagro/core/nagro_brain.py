@@ -14,6 +14,7 @@ import statistics
 import random
 from collections import Counter
 from typing import Iterator
+from nagro.core.knowledge_data import WORLD_KNOWLEDGE, find_knowledge
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -854,6 +855,8 @@ class NAGROBrain:
                                            "how does", "how do", "why is", "why do"])
 
         kb = self._check_knowledge_base(prompt)
+        if not kb:
+            kb = find_knowledge(prompt)
 
         queries = self._make_queries(prompt)
         all_results = []
@@ -1080,7 +1083,7 @@ class NAGROBrain:
             )
         else:
             response += (
-                f"I have built-in knowledge covering 40+ topics including:\n\n"
+                f"I have built-in knowledge covering 150+ topics including:\n\n"
                 f"**Technology:** AI, Machine Learning, Deep Learning, LLMs, Programming, Web Development\n"
                 f"**Science:** Physics, Chemistry, Biology, Mathematics, Astronomy\n"
                 f"**Companies:** OpenAI, Anthropic, Google, DeepSeek, Tesla, SpaceX\n"
@@ -1107,7 +1110,7 @@ class NAGROBrain:
         greetings = [
             "Hello! How can I help you today?\n\nI can:\n- **Answer questions** on any topic (AI, science, history, tech, business...)\n- **Write code** in Python, JavaScript, HTML, SQL and more\n- **Solve math** step by step\n- **Write stories, poems, essays** and creative content\n- **Learn from you** — tell me something and I'll remember it!\n\nJust ask anything!",
             "Hey there! What would you like to explore?\n\nYou can ask me questions, share information with me, or get help with coding and math. I'm all ears!",
-            "Hi! I'm ready to help. You can:\n- Ask me anything (I know 100+ topics in detail)\n- Teach me something new and I'll learn from you\n- Get code, math solutions, or creative writing\n\nWhat's on your mind?",
+            "Hi! I'm ready to help. You can:\n- Ask me anything (I know 150+ topics in detail)\n- Teach me something new and I'll learn from you\n- Get code, math solutions, or creative writing\n\nWhat's on your mind?",
         ]
         return random.choice(greetings)
 
@@ -1116,7 +1119,7 @@ class NAGROBrain:
             "I'm **NAGRO 4.1** — Neural Adaptive Generative Reasoning Operator, "
             "created by **Aditya Kumar**.\n\n"
             "**What I can do:**\n"
-            "- Answer questions on **40+ topics** (AI, science, programming, history, business, and more)\n"
+            "- Answer questions on **150+ topics** (AI, science, programming, history, business, and more)\n"
             "- **Write code** in Python, JavaScript, TypeScript, HTML, SQL, and more\n"
             "- **Solve math** step by step (arithmetic, algebra, statistics)\n"
             "- **Write creatively** — stories, poems, essays, speeches, lyrics, emails\n"
