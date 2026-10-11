@@ -1,4 +1,4 @@
-/* NAGRO 4.1 — Chat UI */
+/* NAGRO 4.1 — Chat UI with Streaming */
 (function () {
     const API = '/api/v1';
     const BACKEND = window.location.hostname === 'localhost' ? '' : 'https://serverless.on-demand.io/apps/nagro';
@@ -163,28 +163,130 @@
 
         appendMsg('user', text);
         saveMsg('user', text);
-        showThinking();
+
+        const assistantDiv = createStreamingMsg();
+        const contentEl = assistantDiv.querySelector('.msg-content');
+        let fullResponse = '';
 
         try {
             const res = await fetch(BACKEND + API + '/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text, conversation_id: state.activeId, stream: false }),
+                body: JSON.stringify({ message: text, conversation_id: state.activeId, stream: true }),
             });
-            removeThinking();
+
             if (!res.ok) throw new Error('HTTP ' + res.status);
-            const data = await res.json();
-            appendMsg('assistant', data.message);
-            saveMsg('assistant', data.message);
+
+            const ct = res.headers.get('content-type') || '';
+
+            if (ct.includes('text/event-stream')) {
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6).trim();
+                            if (data === '[DONE]') continue;
+                            try {
+                                const parsed = JSON.parse(data);
+                                if (parsed.content) {
+                                    fullResponse += parsed.content;
+                                    contentEl.innerHTML = renderMarkdown(fullResponse);
+                                    addCopyButtons(assistantDiv);
+                                    scrollBottom();
+                                }
+                            } catch {}
+                        }
+                    }
+                }
+            } else {
+                const data = await res.json();
+                fullResponse = data.message || data.response || '';
+                contentEl.innerHTML = renderMarkdown(fullResponse);
+                addCopyButtons(assistantDiv);
+            }
+
+            if (!fullResponse) {
+                fullResponse = 'No response received.';
+                contentEl.innerHTML = renderMarkdown(fullResponse);
+            }
+
+            finishStreamingMsg(assistantDiv, fullResponse);
+            saveMsg('assistant', fullResponse);
+
         } catch (err) {
-            removeThinking();
-            const errMsg = 'Could not reach the server. Make sure the backend is running.\n\nError: `' + err.message + '`';
-            appendMsg('assistant', errMsg);
+            fullResponse = 'Could not reach the server. Make sure the backend is running.\n\nError: `' + err.message + '`';
+            contentEl.innerHTML = renderMarkdown(fullResponse);
+            finishStreamingMsg(assistantDiv, fullResponse);
         }
 
         state.loading = false;
         els.sendBtn.disabled = !els.input.value.trim();
         els.input.focus();
+    }
+
+    function createStreamingMsg() {
+        const div = document.createElement('div');
+        div.className = 'msg assistant';
+        div.innerHTML =
+            '<div class="msg-inner">' +
+                '<div class="msg-avatar">N</div>' +
+                '<div class="msg-body">' +
+                    '<div class="msg-role">NAGRO</div>' +
+                    '<div class="msg-content"><span class="cursor-blink"></span></div>' +
+                '</div>' +
+            '</div>';
+        els.messages.appendChild(div);
+        scrollBottom();
+        return div;
+    }
+
+    function finishStreamingMsg(div, content) {
+        const cursor = div.querySelector('.cursor-blink');
+        if (cursor) cursor.remove();
+
+        const actionsHtml = '<div class="msg-actions">' +
+            '<button class="msg-action-btn copy-msg-btn" title="Copy"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="2"/></svg> Copy</button>' +
+            '<button class="msg-action-btn regen-btn" title="Regenerate"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Retry</button>' +
+            '</div>';
+
+        div.querySelector('.msg-body').insertAdjacentHTML('beforeend', actionsHtml);
+
+        const copyMsgBtn = div.querySelector('.copy-msg-btn');
+        if (copyMsgBtn) {
+            copyMsgBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(content).then(() => {
+                    copyMsgBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Copied';
+                    setTimeout(() => {
+                        copyMsgBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="2"/></svg> Copy';
+                    }, 2000);
+                });
+            });
+        }
+
+        const regenBtn = div.querySelector('.regen-btn');
+        if (regenBtn) {
+            regenBtn.addEventListener('click', () => {
+                const s = state.sessions.find(x => x.id === state.activeId);
+                if (!s || s.messages.length < 2) return;
+                const lastUserMsg = [...s.messages].reverse().find(m => m.role === 'user');
+                if (!lastUserMsg) return;
+                s.messages = s.messages.slice(0, -1);
+                save();
+                div.remove();
+                els.input.value = lastUserMsg.content;
+                send();
+            });
+        }
     }
 
     function saveMsg(role, content) {
@@ -234,63 +336,7 @@
             });
         }
 
-        const regenBtn = div.querySelector('.regen-btn');
-        if (regenBtn) {
-            regenBtn.addEventListener('click', () => {
-                const s = state.sessions.find(x => x.id === state.activeId);
-                if (!s || s.messages.length < 2) return;
-                const lastUserMsg = [...s.messages].reverse().find(m => m.role === 'user');
-                if (!lastUserMsg) return;
-                s.messages = s.messages.slice(0, -1);
-                save();
-                div.remove();
-                showThinking();
-                regenerate(lastUserMsg.content);
-            });
-        }
-
         scrollBottom();
-    }
-
-    async function regenerate(text) {
-        state.loading = true;
-        try {
-            const res = await fetch(BACKEND + API + '/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text, conversation_id: state.activeId, stream: false }),
-            });
-            removeThinking();
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const data = await res.json();
-            appendMsg('assistant', data.message);
-            saveMsg('assistant', data.message);
-        } catch (err) {
-            removeThinking();
-            appendMsg('assistant', 'Retry failed: `' + err.message + '`');
-        }
-        state.loading = false;
-    }
-
-    function showThinking() {
-        const div = document.createElement('div');
-        div.className = 'msg assistant';
-        div.id = 'thinkingMsg';
-        div.innerHTML =
-            '<div class="msg-inner">' +
-                '<div class="msg-avatar">N</div>' +
-                '<div class="msg-body">' +
-                    '<div class="msg-role">NAGRO</div>' +
-                    '<div class="thinking"><span></span><span></span><span></span></div>' +
-                '</div>' +
-            '</div>';
-        els.messages.appendChild(div);
-        scrollBottom();
-    }
-
-    function removeThinking() {
-        const t = document.getElementById('thinkingMsg');
-        if (t) t.remove();
     }
 
     function scrollBottom() {

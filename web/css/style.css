@@ -425,6 +425,18 @@ body {
     40% { transform:scale(1); opacity:1; }
 }
 
+/* ── Streaming cursor ── */
+.cursor-blink {
+    display: inline-block;
+    width: 2px;
+    height: 16px;
+    background: var(--accent);
+    animation: blink 0.8s infinite;
+    vertical-align: text-bottom;
+    margin-left: 2px;
+}
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+
 /* ── Input ── */
 .input-wrapper { padding: 0 24px 14px; flex-shrink: 0; }
 .input-container {
