@@ -1,8 +1,12 @@
 """
 NAGRO 4.1 — Self-Built AI Brain (Advanced)
 
-100% built from scratch. No external AI models.
-Intelligence: Knowledge Base + Web Search + NLP + Code Gen + Math + Creative.
+NAGRO Brain = Decision Engine. Uses:
+- Built-in Knowledge Base (150+ topics)
+- Wikipedia API (free, no key)
+- DuckDuckGo Search (free, no key)
+- Open Source Models: Mistral, Qwen, Phi (free, no API key)
+  (NO OpenAI, NO Anthropic, NO Google, NO LLaMA/Meta)
 """
 
 from __future__ import annotations
@@ -892,7 +896,9 @@ class NAGROBrain:
     def _compose_best_answer(self, prompt: str, kb: str | None,
                               wiki: str | None, web_results: list,
                               is_explain: bool) -> str:
-        """Compose the best answer from all available sources."""
+        """Compose the best answer from all available sources.
+        Priority: KB + Web > KB + Wiki > Web > KB > Wiki > OpenSource Model > Fuzzy > Fallback
+        """
         topic = self._extract_topic(prompt)
 
         # Case 1: Knowledge base + web results = comprehensive answer
@@ -922,7 +928,7 @@ class NAGROBrain:
                 return self._make_explanation(kb, prompt)
             return kb
 
-        # Case 5: Only Wikipedia (most reliable fallback for deployed server)
+        # Case 5: Only Wikipedia
         if wiki:
             header = f"## {topic.title()}\n\n"
             footer = (
@@ -941,8 +947,29 @@ class NAGROBrain:
                 return self._make_explanation(multi_kb, prompt)
             return multi_kb
 
-        # Case 7: Smart contextual fallback — NEVER say "can't connect"
+        # Case 7: Try open source models (Mistral, Qwen, Phi — free, no API key)
+        model_answer = self._try_open_source_model(prompt)
+        if model_answer:
+            return model_answer
+
+        # Case 8: Smart contextual fallback — NEVER say "can't connect"
         return self._smart_fallback(prompt)
+
+    def _try_open_source_model(self, prompt: str, task: str = "general") -> str | None:
+        """Try getting an answer from free open source models."""
+        try:
+            from nagro.core.open_source_models import generate_with_model
+            result = generate_with_model(
+                f"[INST] {prompt} [/INST]",
+                task=task,
+                max_tokens=1024,
+            )
+            if result and len(result) > 30:
+                topic = self._extract_topic(prompt)
+                return f"## {topic.title()}\n\n{result}"
+        except Exception:
+            pass
+        return None
 
     def _extract_wiki_additions(self, kb: str, wiki: str) -> str | None:
         """Extract new sentences from wiki that aren't already in kb."""
@@ -1199,7 +1226,7 @@ class NAGROBrain:
             "- **Analyze & summarize** text you paste in\n"
             "- **Research** any topic with web search + built-in knowledge\n"
             "- **Code templates** for algorithms, APIs, data structures\n\n"
-            "100% self-built. No external AI models. 200K context window.\n\n"
+            "Self-built engine + Open Source Models (Mistral, Qwen, Phi). No paid APIs.\n\n"
             "**Try asking me:**\n"
             "- \"What is quantum computing?\"\n"
             "- \"Write a Python binary search\"\n"
@@ -1224,6 +1251,11 @@ class NAGROBrain:
         code = self._generate_code(prompt, lang)
         if code:
             return code
+
+        # Try open source code model (Qwen Coder)
+        model_code = self._try_open_source_model(prompt, task="code")
+        if model_code:
+            return model_code
 
         results = self._web_search(prompt + " code example")
         if results:

@@ -268,8 +268,8 @@ class NAGROEngine:
             "model": self.model_name,
             "version": self.version,
             "architecture": "Neural Adaptive Generative Reasoning Operator",
-            "inference": "NAGRO Self-Built Brain (no external AI)",
-            "llm_model": "NAGRO 4.1 Self-Built Engine",
+            "inference": "NAGRO Brain + Open Source Models (Mistral, Qwen, Phi)",
+            "llm_model": "NAGRO 4.1 + Mistral 7B + Qwen2.5 + Phi-3.5",
             "model_downloaded": True,
             "model_loaded": is_model_loaded(),
             "capabilities": [
@@ -289,6 +289,7 @@ class NAGROEngine:
                 "internal_debate",
                 "task_decomposition",
             ],
-            "external_apis": "none — fully self-built",
+            "open_source_models": ["Mistral 7B", "Qwen2.5", "Phi-3.5 Mini", "Qwen2.5 Coder"],
+            "paid_apis": "none",
             "status": "operational",
         }
