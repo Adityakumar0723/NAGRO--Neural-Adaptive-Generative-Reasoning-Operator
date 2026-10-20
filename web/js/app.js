@@ -18,12 +18,16 @@
         menuBtn:     $('#menuBtn'),
         closeSidebar:$('#closeSidebar'),
         clearChat:   $('#clearChat'),
+        uploadBtn:   $('#uploadBtn'),
+        imageUpload: $('#imageUpload'),
+        imagePreview:$('#imagePreview'),
     };
 
     const state = {
         sessions: loadSessions(),
         activeId: null,
         loading: false,
+        pendingImage: null,
     };
 
     function loadSessions() {
@@ -57,6 +61,31 @@
         });
         if (els.clearChat) {
             els.clearChat.addEventListener('click', newChat);
+        }
+        if (els.uploadBtn) {
+            els.uploadBtn.addEventListener('click', () => els.imageUpload.click());
+        }
+        if (els.imageUpload) {
+            els.imageUpload.addEventListener('change', handleImageSelect);
+        }
+        const imageCapCard = $('#imageCapCard');
+        if (imageCapCard) {
+            imageCapCard.addEventListener('click', () => els.imageUpload.click());
+        }
+        const chatArea = els.chatArea;
+        if (chatArea) {
+            chatArea.addEventListener('dragover', e => { e.preventDefault(); chatArea.classList.add('drag-over'); });
+            chatArea.addEventListener('dragleave', () => chatArea.classList.remove('drag-over'));
+            chatArea.addEventListener('drop', e => {
+                e.preventDefault();
+                chatArea.classList.remove('drag-over');
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    state.pendingImage = file;
+                    showImagePreview(file);
+                    els.sendBtn.disabled = false;
+                }
+            });
         }
         $$('.cap-card').forEach(c => {
             c.addEventListener('click', () => {
@@ -140,20 +169,70 @@
         renderSessions();
     }
 
+    function handleImageSelect(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file (PNG, JPG, GIF, etc.)');
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Image too large. Maximum size is 10 MB.');
+            return;
+        }
+        state.pendingImage = file;
+        showImagePreview(file);
+        els.sendBtn.disabled = false;
+    }
+
+    function showImagePreview(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const sizeKB = (file.size / 1024).toFixed(1);
+            els.imagePreview.innerHTML =
+                '<img src="' + e.target.result + '" alt="Preview">' +
+                '<div class="preview-info">' +
+                    '<div class="preview-name">' + esc(file.name) + '</div>' +
+                    '<div>' + sizeKB + ' KB &bull; ' + file.type + '</div>' +
+                '</div>' +
+                '<button class="preview-remove" title="Remove">&times;</button>';
+            els.imagePreview.classList.remove('hidden');
+            els.imagePreview.querySelector('.preview-remove').addEventListener('click', removeImage);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function removeImage() {
+        state.pendingImage = null;
+        els.imagePreview.classList.add('hidden');
+        els.imagePreview.innerHTML = '';
+        els.imageUpload.value = '';
+        els.sendBtn.disabled = !els.input.value.trim();
+    }
+
     async function send() {
         const text = els.input.value.trim();
-        if (!text || state.loading) return;
+        const hasImage = !!state.pendingImage;
+        if (!text && !hasImage) return;
+        if (state.loading) return;
 
         state.loading = true;
         els.sendBtn.disabled = true;
         els.input.value = '';
         resize();
 
+        const imageFile = state.pendingImage;
+        removeImage();
+
+        const displayText = imageFile
+            ? (text || 'Analyze this image') + '\n\n📷 *Image uploaded: ' + imageFile.name + '*'
+            : text;
+
         if (!state.activeId) {
-            const id = uid();
-            const title = text.length > 35 ? text.slice(0, 35) + '...' : text;
-            state.sessions.unshift({ id, title, messages: [] });
-            state.activeId = id;
+            const titleText = text || 'Image Analysis';
+            const title = titleText.length > 35 ? titleText.slice(0, 35) + '...' : titleText;
+            state.sessions.unshift({ id: uid(), title, messages: [] });
+            state.activeId = state.sessions[0].id;
             save();
             renderSessions();
         }
@@ -161,58 +240,76 @@
         els.welcome.classList.add('hidden');
         els.messages.classList.remove('hidden');
 
-        appendMsg('user', text);
-        saveMsg('user', text);
+        appendMsg('user', displayText);
+        saveMsg('user', displayText);
 
         const assistantDiv = createStreamingMsg();
         const contentEl = assistantDiv.querySelector('.msg-content');
         let fullResponse = '';
 
         try {
-            const res = await fetch(BACKEND + API + '/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text, conversation_id: state.activeId, stream: true }),
-            });
-
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-
-            const ct = res.headers.get('content-type') || '';
-
-            if (ct.includes('text/event-stream')) {
-                const reader = res.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    buffer += decoder.decode(value, { stream: true });
-
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop();
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const data = line.slice(6).trim();
-                            if (data === '[DONE]') continue;
-                            try {
-                                const parsed = JSON.parse(data);
-                                if (parsed.content) {
-                                    fullResponse += parsed.content;
-                                    contentEl.innerHTML = renderMarkdown(fullResponse);
-                                    addCopyButtons(assistantDiv);
-                                    scrollBottom();
-                                }
-                            } catch {}
-                        }
-                    }
-                }
-            } else {
+            if (imageFile) {
+                const formData = new FormData();
+                formData.append('file', imageFile);
+                const res = await fetch(BACKEND + API + '/image/analyze', {
+                    method: 'POST',
+                    body: formData,
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
                 const data = await res.json();
-                fullResponse = data.message || data.response || '';
+                if (data.success) {
+                    fullResponse = data.analysis;
+                } else {
+                    fullResponse = 'Image analysis failed: ' + (data.error || 'Unknown error');
+                }
                 contentEl.innerHTML = renderMarkdown(fullResponse);
                 addCopyButtons(assistantDiv);
+            } else {
+                const res = await fetch(BACKEND + API + '/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text, conversation_id: state.activeId, stream: true }),
+                });
+
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+
+                const ct = res.headers.get('content-type') || '';
+
+                if (ct.includes('text/event-stream')) {
+                    const reader = res.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6).trim();
+                                if (data === '[DONE]') continue;
+                                try {
+                                    const parsed = JSON.parse(data);
+                                    if (parsed.content) {
+                                        fullResponse += parsed.content;
+                                        contentEl.innerHTML = renderMarkdown(fullResponse);
+                                        addCopyButtons(assistantDiv);
+                                        scrollBottom();
+                                    }
+                                } catch {}
+                            }
+                        }
+                    }
+                } else {
+                    const data = await res.json();
+                    fullResponse = data.message || data.response || '';
+                    contentEl.innerHTML = renderMarkdown(fullResponse);
+                    addCopyButtons(assistantDiv);
+                }
             }
 
             if (!fullResponse) {

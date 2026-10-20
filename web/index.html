@@ -93,10 +93,10 @@
                             <div class="cap-title">Solve Math</div>
                             <div class="cap-desc">Step-by-step solutions</div>
                         </div>
-                        <div class="cap-card" data-prompt="Write a poem about technology and the human spirit">
-                            <div class="cap-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                            <div class="cap-title">Create</div>
-                            <div class="cap-desc">Stories, poems & essays</div>
+                        <div class="cap-card" id="imageCapCard">
+                            <div class="cap-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                            <div class="cap-title">Analyze Image</div>
+                            <div class="cap-desc">Upload & analyze any image</div>
                         </div>
                     </div>
                 </div>
@@ -106,12 +106,17 @@
 
             <div class="input-wrapper">
                 <div class="input-container">
+                    <input type="file" id="imageUpload" accept="image/*" style="display:none">
+                    <button class="upload-btn" id="uploadBtn" title="Upload image for analysis">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
                     <textarea id="msgInput" placeholder="Message NAGRO..." rows="1"></textarea>
                     <button class="send-btn" id="sendBtn" disabled>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
                 </div>
-                <div class="input-footer">NAGRO 4.1 &mdash; Self-Built AI &bull; 200K Context &bull; Zero External APIs</div>
+                <div id="imagePreview" class="image-preview hidden"></div>
+                <div class="input-footer">NAGRO 4.1 &mdash; Self-Built AI &bull; 200K Context &bull; Image Analysis &bull; Zero External APIs</div>
             </div>
         </main>
     </div>
