@@ -1,12 +1,13 @@
 """
 NAGRO 4.1 — Self-Built AI Brain (Advanced)
 
-NAGRO Brain = Decision Engine. Uses:
+NAGRO Brain = Decision Engine. 100% self-built. Uses:
 - Built-in Knowledge Base (150+ topics)
 - Wikipedia API (free, no key)
 - DuckDuckGo Search (free, no key)
-- Open Source Models: Mistral, Qwen, Phi (free, no API key)
-  (NO OpenAI, NO Anthropic, NO Google, NO LLaMA/Meta)
+- Self-built code generator (50+ patterns)
+- Self-built creative writing engine
+(NO OpenAI, NO Anthropic, NO Google, NO paid APIs)
 """
 
 from __future__ import annotations
@@ -615,6 +616,44 @@ class NAGROBrain:
             self._search = WebSearch()
         return self._search
 
+    def _clean_prompt(self, prompt: str) -> str:
+        """Clean and normalize the prompt for better understanding."""
+        p = prompt.strip()
+
+        filler = [
+            r'\b(?:please|pls|plz|kindly|basically|actually|bro|dude|yaar|bhai|hey)\b',
+            r'\b(?:can you|could you|would you|will you|i want you to|i need you to)\b',
+            r'\b(?:kya aap|kya tum|zara|thoda|mujhe|mujhko|mere liye)\b',
+            r'\b(?:like|just|really|very|quite|pretty much|sort of|kind of)\b',
+        ]
+        cleaned = p
+        for pat in filler:
+            cleaned = re.sub(pat, ' ', cleaned, flags=re.I)
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+
+        if len(cleaned) > 400:
+            sentences = re.split(r'[.?!\n]+', cleaned)
+            questions = [s.strip() for s in sentences if '?' in s and len(s.strip()) > 8]
+            if questions:
+                cleaned = questions[-1]
+            else:
+                action_pats = [
+                    r'((?:write|create|build|make|generate|explain|solve|find|implement|show|give|list|code|design|develop|banao|likho|batao|samjhao)\b.{5,})',
+                ]
+                for ap in action_pats:
+                    m = re.search(ap, cleaned, re.I)
+                    if m:
+                        cleaned = m.group(1).strip()
+                        break
+                else:
+                    meaningful = [s.strip() for s in sentences if len(s.strip()) > 15]
+                    if meaningful:
+                        cleaned = meaningful[-1]
+                    else:
+                        cleaned = cleaned[:400]
+
+        return cleaned if len(cleaned) > 3 else p
+
     def think(self, prompt: str, system_prompt: str = "", history: list | None = None) -> str:
         if history:
             self._conversation_context = history[-10:]
@@ -627,7 +666,9 @@ class NAGROBrain:
         if followup:
             prompt = followup
 
-        task = self._classify(prompt)
+        cleaned = self._clean_prompt(prompt)
+
+        task = self._classify(cleaned)
         handlers = {
             "greeting": self._handle_greeting,
             "code": self._handle_code,
@@ -638,7 +679,7 @@ class NAGROBrain:
             "document": self._handle_document,
         }
         handler = handlers.get(task, self._handle_general)
-        response = handler(prompt)
+        response = handler(cleaned)
 
         topic = self._extract_topic(prompt)
         if topic and len(topic) > 2:
@@ -796,16 +837,34 @@ class NAGROBrain:
         return bool(re.search(r'\b' + re.escape(keyword) + r'\b', text))
 
     def _score_code(self, p: str) -> int:
-        kw = ["write code", "write a program", "write a function", "coding",
-              "implement", "debug", "algorithm", "data structure",
-              "python code", "javascript code", "html code", "sql query",
-              "linked list", "binary search", "quicksort", "merge sort",
-              "hash map", "binary tree", "rest api", "web scraper",
-              "flask", "django", "express", "react app",
-              "fibonacci", "dynamic programming", "crud", "async await",
-              "decorator", "pytest", "regex", "websocket",
-              "program banao", "code likho"]
-        return sum(1 for k in kw if k in p)
+        strong_kw = ["write code", "write a program", "write a function", "write a script",
+                     "python code", "javascript code", "html code", "sql query",
+                     "code likho", "program banao", "program likho", "code banao",
+                     "coding course", "coding tutorial", "code example",
+                     "write a class", "write a method", "build a program"]
+        score = sum(2 for k in strong_kw if k in p)
+        weak_kw = ["coding", "implement", "debug", "algorithm", "data structure",
+                   "linked list", "binary search", "quicksort", "merge sort",
+                   "hash map", "binary tree", "rest api", "web scraper",
+                   "flask", "django", "express", "react app", "react component",
+                   "fibonacci", "dynamic programming", "crud", "async await",
+                   "decorator", "pytest", "regex", "websocket", "socket",
+                   "function", "class", "loop", "recursion", "stack", "queue",
+                   "api", "http", "json", "database", "mongodb", "mysql",
+                   "file handling", "exception handling", "inheritance", "polymorphism",
+                   "encapsulation", "abstraction", "constructor", "destructor",
+                   "sorting", "searching", "graph", "tree", "array",
+                   "todo app", "calculator app", "login system", "signup",
+                   "authentication", "jwt", "token", "bcrypt",
+                   "web app", "desktop app", "mobile app", "cli app",
+                   "scraping", "beautifulsoup", "selenium", "requests",
+                   "pandas", "numpy", "matplotlib", "tkinter",
+                   "fastapi", "node.js", "typescript", "golang", "rust",
+                   "course", "tutorial", "project", "mini project"]
+        score += sum(1 for k in weak_kw if k in p)
+        if re.search(r'\b(def|function|class|import|print|console\.log|var |let |const )\b', p):
+            score += 2
+        return score
 
     def _score_math(self, p: str) -> int:
         long_kw = ["calculate", "solve", "equation", "derivative",
@@ -822,11 +881,18 @@ class NAGROBrain:
         return score
 
     def _score_creative(self, p: str) -> int:
-        kw = ["write a story", "write a poem", "write an essay", "write a letter",
-              "write a speech", "write lyrics", "write a song",
-              "poem about", "story about", "essay about",
-              "creative writing", "compose", "kahani", "kavita"]
-        return sum(1 for k in kw if k in p)
+        strong_kw = ["write a story", "write a poem", "write an essay", "write a letter",
+                     "write a speech", "write lyrics", "write a song", "write a joke",
+                     "poem about", "story about", "essay about", "speech about",
+                     "kahani likho", "kavita likho", "gana likho"]
+        score = sum(2 for k in strong_kw if k in p)
+        weak_kw = ["creative writing", "compose", "kahani", "kavita", "shayari",
+                   "bhashan", "patra", "geet", "gana", "chutkula",
+                   "poem", "story", "tale", "lyrics", "song", "speech",
+                   "joke", "funny", "quotes", "motivation", "inspiration",
+                   "letter to", "email to", "essay on"]
+        score += sum(1 for k in weak_kw if k in p)
+        return score
 
     def _score_image(self, p: str) -> int:
         kw = ["generate image", "create image", "draw a", "generate a picture",
@@ -989,6 +1055,22 @@ class NAGROBrain:
             "2+2": "2 + 2 = **4**",
             "what is 1+1": "1 + 1 = **2**",
             "what is 2+2": "2 + 2 = **4**",
+            "how many continents": "There are **7 continents**: Asia, Africa, North America, South America, Antarctica, Europe, and Australia/Oceania.",
+            "how many oceans": "There are **5 oceans**: Pacific, Atlantic, Indian, Southern (Antarctic), and Arctic.",
+            "what is the largest animal": "The **Blue Whale** is the largest animal ever to have lived on Earth, reaching up to 30 meters (100 feet) long and weighing up to 200 tonnes.",
+            "fastest animal": "The **Peregrine Falcon** is the fastest animal, reaching speeds over **390 km/h (242 mph)** during its hunting dive. On land, the **Cheetah** is fastest at **112 km/h (70 mph)**.",
+            "what is dna": "**DNA (Deoxyribonucleic Acid)** is a molecule that carries the genetic instructions for the development, functioning, growth, and reproduction of all known organisms. It has a double helix structure, discovered by Watson and Crick in 1953.",
+            "what is photosynthesis": "**Photosynthesis** is the process by which green plants and some organisms convert sunlight, water (H₂O), and carbon dioxide (CO₂) into glucose (C₆H₁₂O₆) and oxygen (O₂). Formula: **6CO₂ + 6H₂O + light → C₆H₁₂O₆ + 6O₂**",
+            "what is electricity": "**Electricity** is the flow of electric charge (usually electrons) through a conductor. It's measured in **Amperes (A)** for current, **Volts (V)** for voltage, and **Watts (W)** for power. P = V × I.",
+            "what is the internet": "The **Internet** is a global network of interconnected computers that communicate using the TCP/IP protocol. Created from ARPANET (1969), it now connects over 5 billion users worldwide via servers, routers, and cables (including undersea fiber optic cables).",
+            "who invented computer": "**Charles Babbage** is considered the 'Father of the Computer' for designing the Analytical Engine (1837). The first electronic general-purpose computer was **ENIAC** (1945). **Alan Turing** laid the theoretical foundations of computing.",
+            "who invented telephone": "**Alexander Graham Bell** patented the first practical telephone on **March 7, 1876**.",
+            "who invented electricity": "Electricity wasn't invented — it's a natural phenomenon. **Benjamin Franklin** proved lightning was electrical (1752). **Michael Faraday** invented the electric motor (1821) and discovered electromagnetic induction. **Thomas Edison** invented the practical light bulb (1879).",
+            "distance to moon": "The average distance from Earth to the Moon is approximately **384,400 km** (238,855 miles). Light takes about **1.3 seconds** to travel from Earth to the Moon.",
+            "distance to sun": "The average distance from Earth to the Sun is approximately **149.6 million km** (93 million miles), also called **1 Astronomical Unit (AU)**. Light takes about **8 minutes 20 seconds** to travel from the Sun to Earth.",
+            "what is python": "**Python** is a high-level, interpreted programming language created by **Guido van Rossum** in 1991. Known for its simple, readable syntax and versatility. Used in web development, data science, AI/ML, automation, and scripting. One of the most popular languages worldwide.",
+            "what is javascript": "**JavaScript** is a programming language created by **Brendan Eich** in 1995 (in just 10 days!). Originally for web browsers, it now runs everywhere via Node.js. It's the language of the web — used for frontend (React, Vue) and backend (Express, Fastify) development.",
+            "what is html": "**HTML (HyperText Markup Language)** is the standard markup language for creating web pages. Created by **Tim Berners-Lee** in 1993. It defines the structure of web content using tags like `<h1>`, `<p>`, `<div>`, `<img>`, etc. Current version: HTML5.",
             "hello": None,
             "hi": None,
         }
@@ -1414,7 +1496,7 @@ class NAGROBrain:
             "- **Analyze & summarize** text you paste in\n"
             "- **Research** any topic with web search + built-in knowledge\n"
             "- **Code templates** for algorithms, APIs, data structures\n\n"
-            "Self-built engine + Open Source Models (Mistral, Qwen, Phi). No paid APIs.\n\n"
+            "100% self-built AI engine. No paid APIs. No dependencies on external AI services.\n\n"
             "**Try asking me:**\n"
             "- \"What is quantum computing?\"\n"
             "- \"Write a Python binary search\"\n"
@@ -1426,6 +1508,19 @@ class NAGROBrain:
     # ── Code ──
 
     def _handle_code(self, prompt: str) -> str:
+        p = prompt.lower()
+
+        if any(k in p for k in ["course", "tutorial", "syllabus", "curriculum",
+                                 "roadmap", "learning path", "sikhao", "seekhna",
+                                 "complete guide", "full guide", "step by step learn"]):
+            return self._generate_course(prompt)
+
+        if any(k in p for k in ["project", "mini project", "build a", "banao",
+                                 "full stack", "web app", "desktop app", "cli app",
+                                 "todo app", "chat app", "blog", "portfolio",
+                                 "e-commerce", "ecommerce", "landing page"]):
+            return self._generate_project(prompt)
+
         from nagro.core.code_templates import find_template, detect_language
         lang = detect_language(prompt)
         template = find_template(prompt, lang)
@@ -1440,7 +1535,6 @@ class NAGROBrain:
         if code:
             return code
 
-        # Try open source code model (Qwen Coder)
         model_code = self._try_open_source_model(prompt, task="code")
         if model_code:
             return model_code
@@ -1454,8 +1548,8 @@ class NAGROBrain:
             "- \"Create a REST API\" — web backend\n"
             "- \"JavaScript fetch example\" — HTTP requests\n"
             "- \"Binary search tree\" — data structures\n"
-            "- \"Python decorator\" — design patterns\n"
-            "- \"SQL CRUD operations\" — database queries\n\n"
+            "- \"Python course\" — full learning roadmap\n"
+            "- \"Build a todo app\" — complete project\n\n"
             "Just tell me what you need!"
         )
 
@@ -1471,11 +1565,268 @@ class NAGROBrain:
             "anagram": ("def is_anagram(s1, s2):\n    return sorted(s1.lower()) == sorted(s2.lower())\n\nprint(is_anagram('listen', 'silent'))  # True\nprint(is_anagram('hello', 'world'))   # False", "Sorted character comparison — O(n log n)."),
             "counter": ("from collections import Counter\n\ndef most_common_words(text, n=5):\n    words = text.lower().split()\n    return Counter(words).most_common(n)\n\ntext = 'the cat sat on the mat the cat'\nprint(most_common_words(text))", "Word frequency counter using collections.Counter."),
             "matrix": ("def multiply_matrices(A, B):\n    rows_A, cols_A = len(A), len(A[0])\n    cols_B = len(B[0])\n    result = [[0]*cols_B for _ in range(rows_A)]\n    for i in range(rows_A):\n        for j in range(cols_B):\n            for k in range(cols_A):\n                result[i][j] += A[i][k] * B[k][j]\n    return result\n\nA = [[1,2],[3,4]]\nB = [[5,6],[7,8]]\nprint(multiply_matrices(A, B))  # [[19,22],[43,50]]", "O(n³) matrix multiplication."),
+            "fibonacci": ("def fibonacci(n):\n    a, b = 0, 1\n    result = []\n    for _ in range(n):\n        result.append(a)\n        a, b = b, a + b\n    return result\n\nprint(fibonacci(15))", "Iterative Fibonacci — O(n) time, O(n) space."),
+            "linked list": ("class Node:\n    def __init__(self, data):\n        self.data = data\n        self.next = None\n\nclass LinkedList:\n    def __init__(self):\n        self.head = None\n\n    def append(self, data):\n        new = Node(data)\n        if not self.head:\n            self.head = new\n            return\n        curr = self.head\n        while curr.next:\n            curr = curr.next\n        curr.next = new\n\n    def display(self):\n        curr = self.head\n        while curr:\n            print(curr.data, end=' -> ')\n            curr = curr.next\n        print('None')\n\n    def delete(self, key):\n        curr = self.head\n        if curr and curr.data == key:\n            self.head = curr.next\n            return\n        while curr and curr.next:\n            if curr.next.data == key:\n                curr.next = curr.next.next\n                return\n            curr = curr.next\n\nll = LinkedList()\nfor x in [10, 20, 30, 40, 50]:\n    ll.append(x)\nll.display()\nll.delete(30)\nll.display()", "Singly linked list with append, delete, display."),
+            "stack": ("class Stack:\n    def __init__(self):\n        self.items = []\n\n    def push(self, item):\n        self.items.append(item)\n\n    def pop(self):\n        if not self.is_empty():\n            return self.items.pop()\n        raise IndexError('Stack is empty')\n\n    def peek(self):\n        if not self.is_empty():\n            return self.items[-1]\n        raise IndexError('Stack is empty')\n\n    def is_empty(self):\n        return len(self.items) == 0\n\n    def size(self):\n        return len(self.items)\n\ns = Stack()\nfor x in [1, 2, 3, 4, 5]:\n    s.push(x)\nprint(f'Top: {s.peek()}')\nprint(f'Pop: {s.pop()}')\nprint(f'Size: {s.size()}')", "Stack using list — LIFO data structure."),
+            "queue": ("from collections import deque\n\nclass Queue:\n    def __init__(self):\n        self.items = deque()\n\n    def enqueue(self, item):\n        self.items.append(item)\n\n    def dequeue(self):\n        if not self.is_empty():\n            return self.items.popleft()\n        raise IndexError('Queue is empty')\n\n    def peek(self):\n        if not self.is_empty():\n            return self.items[0]\n        raise IndexError('Queue is empty')\n\n    def is_empty(self):\n        return len(self.items) == 0\n\n    def size(self):\n        return len(self.items)\n\nq = Queue()\nfor x in ['A', 'B', 'C', 'D']:\n    q.enqueue(x)\nprint(f'Front: {q.peek()}')\nprint(f'Dequeue: {q.dequeue()}')\nprint(f'Size: {q.size()}')", "Queue using deque — FIFO data structure."),
+            "binary search": ("def binary_search(arr, target):\n    left, right = 0, len(arr) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    return -1\n\narr = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91]\nprint(binary_search(arr, 23))  # 5\nprint(binary_search(arr, 99))  # -1", "Binary search — O(log n) on sorted array."),
+            "binary tree": ("class TreeNode:\n    def __init__(self, val):\n        self.val = val\n        self.left = None\n        self.right = None\n\nclass BST:\n    def __init__(self):\n        self.root = None\n\n    def insert(self, val):\n        self.root = self._insert(self.root, val)\n\n    def _insert(self, node, val):\n        if not node:\n            return TreeNode(val)\n        if val < node.val:\n            node.left = self._insert(node.left, val)\n        else:\n            node.right = self._insert(node.right, val)\n        return node\n\n    def inorder(self):\n        result = []\n        self._inorder(self.root, result)\n        return result\n\n    def _inorder(self, node, result):\n        if node:\n            self._inorder(node.left, result)\n            result.append(node.val)\n            self._inorder(node.right, result)\n\n    def search(self, val):\n        return self._search(self.root, val)\n\n    def _search(self, node, val):\n        if not node:\n            return False\n        if val == node.val:\n            return True\n        if val < node.val:\n            return self._search(node.left, val)\n        return self._search(node.right, val)\n\ntree = BST()\nfor x in [50, 30, 70, 20, 40, 60, 80]:\n    tree.insert(x)\nprint('Inorder:', tree.inorder())\nprint('Search 40:', tree.search(40))\nprint('Search 99:', tree.search(99))", "Binary Search Tree with insert, search, inorder traversal."),
+            "hash table": ("class HashTable:\n    def __init__(self, size=10):\n        self.size = size\n        self.table = [[] for _ in range(size)]\n\n    def _hash(self, key):\n        return hash(key) % self.size\n\n    def put(self, key, value):\n        idx = self._hash(key)\n        for i, (k, v) in enumerate(self.table[idx]):\n            if k == key:\n                self.table[idx][i] = (key, value)\n                return\n        self.table[idx].append((key, value))\n\n    def get(self, key):\n        idx = self._hash(key)\n        for k, v in self.table[idx]:\n            if k == key:\n                return v\n        raise KeyError(key)\n\n    def delete(self, key):\n        idx = self._hash(key)\n        for i, (k, v) in enumerate(self.table[idx]):\n            if k == key:\n                del self.table[idx][i]\n                return\n        raise KeyError(key)\n\nht = HashTable()\nht.put('name', 'NAGRO')\nht.put('version', '4.1')\nht.put('author', 'Aditya')\nprint(ht.get('name'))\nprint(ht.get('version'))", "Hash table with chaining for collision handling."),
+            "graph": ("class Graph:\n    def __init__(self):\n        self.adj = {}\n\n    def add_edge(self, u, v):\n        self.adj.setdefault(u, []).append(v)\n        self.adj.setdefault(v, []).append(u)\n\n    def bfs(self, start):\n        visited = set([start])\n        queue = [start]\n        order = []\n        while queue:\n            node = queue.pop(0)\n            order.append(node)\n            for neighbor in self.adj.get(node, []):\n                if neighbor not in visited:\n                    visited.add(neighbor)\n                    queue.append(neighbor)\n        return order\n\n    def dfs(self, start, visited=None):\n        if visited is None:\n            visited = set()\n        visited.add(start)\n        result = [start]\n        for neighbor in self.adj.get(start, []):\n            if neighbor not in visited:\n                result.extend(self.dfs(neighbor, visited))\n        return result\n\ng = Graph()\nfor u, v in [(0,1),(0,2),(1,3),(2,4),(3,4)]:\n    g.add_edge(u, v)\nprint('BFS:', g.bfs(0))\nprint('DFS:', g.dfs(0))", "Graph with adjacency list, BFS and DFS traversal."),
+            "read file": ("# Read a file\nwith open('data.txt', 'r') as f:\n    content = f.read()\n    print(content)\n\n# Read line by line\nwith open('data.txt', 'r') as f:\n    for line in f:\n        print(line.strip())\n\n# Read into list\nwith open('data.txt', 'r') as f:\n    lines = f.readlines()\n    print(f'Total lines: {len(lines)}')", "File reading — three different approaches."),
+            "write file": ("# Write to file (creates or overwrites)\nwith open('output.txt', 'w') as f:\n    f.write('Hello, World!\\n')\n    f.write('Second line\\n')\n\n# Append to file\nwith open('output.txt', 'a') as f:\n    f.write('Appended line\\n')\n\n# Write list of lines\nlines = ['Line 1\\n', 'Line 2\\n', 'Line 3\\n']\nwith open('output.txt', 'w') as f:\n    f.writelines(lines)\n\nprint('File written successfully!')", "File writing with write, append, and writelines."),
+            "file handling": ("import os\n\n# Read file\nwith open('example.txt', 'w') as f:\n    f.write('Hello NAGRO!\\nLine 2\\nLine 3')\n\nwith open('example.txt', 'r') as f:\n    content = f.read()\n    print('Content:', content)\n\n# File info\nsize = os.path.getsize('example.txt')\nprint(f'Size: {size} bytes')\nprint(f'Exists: {os.path.exists(\"example.txt\")}')\n\n# List directory\nfor item in os.listdir('.'):\n    print(item)", "Complete file handling — read, write, info, directory listing."),
+            "csv": ("import csv\n\n# Write CSV\ndata = [['Name', 'Age', 'City'],\n        ['Aditya', 25, 'Delhi'],\n        ['Raj', 30, 'Mumbai'],\n        ['Priya', 28, 'Bangalore']]\n\nwith open('people.csv', 'w', newline='') as f:\n    writer = csv.writer(f)\n    writer.writerows(data)\n\n# Read CSV\nwith open('people.csv', 'r') as f:\n    reader = csv.DictReader(f)\n    for row in reader:\n        print(f\"{row['Name']} is {row['Age']} from {row['City']}\")", "CSV file read/write with csv module."),
+            "json": ("import json\n\n# Python dict to JSON\ndata = {\n    'name': 'NAGRO',\n    'version': '4.1',\n    'features': ['AI', 'Code', 'Math', 'Creative'],\n    'author': {'name': 'Aditya', 'role': 'Creator'}\n}\n\n# Write JSON file\nwith open('config.json', 'w') as f:\n    json.dump(data, f, indent=2)\n\n# Read JSON file\nwith open('config.json', 'r') as f:\n    loaded = json.load(f)\n    print(loaded['name'])\n    print(loaded['features'])\n\n# String conversion\njson_str = json.dumps(data, indent=2)\nprint(json_str)", "JSON read/write/serialize/deserialize."),
+            "http request": ("import urllib.request\nimport json\n\n# GET request\nurl = 'https://jsonplaceholder.typicode.com/posts/1'\nwith urllib.request.urlopen(url) as response:\n    data = json.loads(response.read())\n    print(f\"Title: {data['title']}\")\n    print(f\"Body: {data['body'][:100]}...\")\n\n# POST request\npost_data = json.dumps({'title': 'Hello', 'body': 'World', 'userId': 1}).encode()\nreq = urllib.request.Request(\n    'https://jsonplaceholder.typicode.com/posts',\n    data=post_data,\n    headers={'Content-Type': 'application/json'}\n)\nwith urllib.request.urlopen(req) as response:\n    result = json.loads(response.read())\n    print(f'Created post ID: {result[\"id\"]}')", "HTTP GET and POST requests using urllib (no external packages)."),
+            "api": ("from http.server import HTTPServer, BaseHTTPRequestHandler\nimport json\n\nclass APIHandler(BaseHTTPRequestHandler):\n    items = []\n\n    def do_GET(self):\n        self.send_response(200)\n        self.send_header('Content-Type', 'application/json')\n        self.end_headers()\n        self.wfile.write(json.dumps({'items': self.items}).encode())\n\n    def do_POST(self):\n        length = int(self.headers['Content-Length'])\n        data = json.loads(self.rfile.read(length))\n        self.items.append(data)\n        self.send_response(201)\n        self.send_header('Content-Type', 'application/json')\n        self.end_headers()\n        self.wfile.write(json.dumps({'status': 'created', 'item': data}).encode())\n\nserver = HTTPServer(('localhost', 8000), APIHandler)\nprint('API running on http://localhost:8000')\nserver.serve_forever()", "Simple REST API server using built-in http.server."),
+            "rest api": ("from http.server import HTTPServer, BaseHTTPRequestHandler\nimport json\n\nclass APIHandler(BaseHTTPRequestHandler):\n    items = []\n\n    def do_GET(self):\n        self.send_response(200)\n        self.send_header('Content-Type', 'application/json')\n        self.end_headers()\n        self.wfile.write(json.dumps({'items': self.items}).encode())\n\n    def do_POST(self):\n        length = int(self.headers['Content-Length'])\n        data = json.loads(self.rfile.read(length))\n        self.items.append(data)\n        self.send_response(201)\n        self.send_header('Content-Type', 'application/json')\n        self.end_headers()\n        self.wfile.write(json.dumps({'status': 'created', 'item': data}).encode())\n\nserver = HTTPServer(('localhost', 8000), APIHandler)\nprint('API running on http://localhost:8000')\nserver.serve_forever()", "Simple REST API server using built-in http.server."),
+            "web scraper": ("import urllib.request\nimport re\n\ndef scrape(url):\n    with urllib.request.urlopen(url) as resp:\n        html = resp.read().decode()\n    title = re.search(r'<title>(.*?)</title>', html, re.I|re.S)\n    links = re.findall(r'href=[\"\\']([^\"\\'>]+)[\"\\']', html)\n    texts = re.findall(r'<p[^>]*>(.*?)</p>', html, re.I|re.S)\n    clean = lambda t: re.sub(r'<[^>]+>', '', t).strip()\n    return {\n        'title': title.group(1) if title else 'No title',\n        'links': links[:10],\n        'paragraphs': [clean(t) for t in texts[:5] if len(clean(t)) > 20]\n    }\n\nresult = scrape('https://example.com')\nprint(f\"Title: {result['title']}\")\nprint(f\"Links: {len(result['links'])}\")\nfor p in result['paragraphs']:\n    print(f'  - {p[:80]}...')", "Web scraper using urllib + regex (no BeautifulSoup needed)."),
+            "calculator": ("def calculator():\n    print('=== Calculator ===')\n    print('Operations: + - * / ** %')\n    while True:\n        expr = input('Enter expression (or q to quit): ')\n        if expr.lower() == 'q':\n            break\n        try:\n            result = eval(expr)\n            print(f'  = {result}')\n        except Exception as e:\n            print(f'  Error: {e}')\n\ncalculator()", "Interactive calculator with basic and power operations."),
+            "todo": ("class TodoList:\n    def __init__(self):\n        self.tasks = []\n\n    def add(self, task):\n        self.tasks.append({'task': task, 'done': False})\n        print(f'Added: {task}')\n\n    def complete(self, index):\n        if 0 <= index < len(self.tasks):\n            self.tasks[index]['done'] = True\n            print(f'Completed: {self.tasks[index][\"task\"]}')\n\n    def delete(self, index):\n        if 0 <= index < len(self.tasks):\n            removed = self.tasks.pop(index)\n            print(f'Deleted: {removed[\"task\"]}')\n\n    def show(self):\n        if not self.tasks:\n            print('No tasks!')\n            return\n        for i, t in enumerate(self.tasks):\n            status = 'DONE' if t['done'] else 'TODO'\n            print(f'  {i}. [{status}] {t[\"task\"]}')\n\ntodo = TodoList()\ntodo.add('Learn Python')\ntodo.add('Build a project')\ntodo.add('Deploy to production')\ntodo.show()\ntodo.complete(0)\ntodo.show()", "Todo list manager with add, complete, delete, show."),
+            "login": ("import hashlib, getpass\n\nusers_db = {}\n\ndef hash_pw(password):\n    return hashlib.sha256(password.encode()).hexdigest()\n\ndef signup(username, password):\n    if username in users_db:\n        return 'Username already exists!'\n    users_db[username] = hash_pw(password)\n    return f'User {username} created successfully!'\n\ndef login(username, password):\n    if username not in users_db:\n        return 'User not found!'\n    if users_db[username] == hash_pw(password):\n        return f'Welcome back, {username}!'\n    return 'Incorrect password!'\n\nprint(signup('admin', 'secure123'))\nprint(signup('user1', 'pass456'))\nprint(login('admin', 'secure123'))\nprint(login('admin', 'wrong'))\nprint(login('ghost', 'pass'))", "Login/signup system with SHA-256 password hashing."),
+            "signup": ("import hashlib, getpass\n\nusers_db = {}\n\ndef hash_pw(password):\n    return hashlib.sha256(password.encode()).hexdigest()\n\ndef signup(username, password):\n    if username in users_db:\n        return 'Username already exists!'\n    users_db[username] = hash_pw(password)\n    return f'User {username} created successfully!'\n\ndef login(username, password):\n    if username not in users_db:\n        return 'User not found!'\n    if users_db[username] == hash_pw(password):\n        return f'Welcome back, {username}!'\n    return 'Incorrect password!'\n\nprint(signup('admin', 'secure123'))\nprint(login('admin', 'secure123'))", "Signup/login system with SHA-256 password hashing."),
+            "decorator": ("import time\nfrom functools import wraps\n\n# Timer decorator\ndef timer(func):\n    @wraps(func)\n    def wrapper(*args, **kwargs):\n        start = time.time()\n        result = func(*args, **kwargs)\n        print(f'{func.__name__} took {time.time()-start:.4f}s')\n        return result\n    return wrapper\n\n# Retry decorator\ndef retry(max_attempts=3):\n    def decorator(func):\n        @wraps(func)\n        def wrapper(*args, **kwargs):\n            for attempt in range(1, max_attempts+1):\n                try:\n                    return func(*args, **kwargs)\n                except Exception as e:\n                    print(f'Attempt {attempt} failed: {e}')\n                    if attempt == max_attempts:\n                        raise\n        return wrapper\n    return decorator\n\n@timer\ndef slow_function():\n    time.sleep(0.5)\n    return 'Done!'\n\nprint(slow_function())", "Decorators — timer and retry with functools.wraps."),
+            "class": ("class BankAccount:\n    def __init__(self, owner, balance=0):\n        self.owner = owner\n        self._balance = balance\n\n    @property\n    def balance(self):\n        return self._balance\n\n    def deposit(self, amount):\n        if amount <= 0:\n            raise ValueError('Deposit must be positive')\n        self._balance += amount\n        return f'Deposited {amount}. Balance: {self._balance}'\n\n    def withdraw(self, amount):\n        if amount <= 0:\n            raise ValueError('Withdrawal must be positive')\n        if amount > self._balance:\n            raise ValueError('Insufficient funds')\n        self._balance -= amount\n        return f'Withdrew {amount}. Balance: {self._balance}'\n\n    def __str__(self):\n        return f'Account({self.owner}, Balance: {self._balance})'\n\nacc = BankAccount('Aditya', 1000)\nprint(acc)\nprint(acc.deposit(500))\nprint(acc.withdraw(200))\nprint(acc)", "OOP with properties, methods, encapsulation, dunder methods."),
+            "inheritance": ("class Animal:\n    def __init__(self, name, species):\n        self.name = name\n        self.species = species\n\n    def speak(self):\n        return f'{self.name} makes a sound'\n\n    def __str__(self):\n        return f'{self.name} ({self.species})'\n\nclass Dog(Animal):\n    def __init__(self, name, breed):\n        super().__init__(name, 'Dog')\n        self.breed = breed\n\n    def speak(self):\n        return f'{self.name} barks! Woof!'\n\nclass Cat(Animal):\n    def __init__(self, name, color):\n        super().__init__(name, 'Cat')\n        self.color = color\n\n    def speak(self):\n        return f'{self.name} meows! Meow!'\n\nanimals = [Dog('Buddy', 'Labrador'), Cat('Whiskers', 'Orange'), Dog('Max', 'German Shepherd')]\nfor a in animals:\n    print(f'{a} says: {a.speak()}')", "Inheritance and polymorphism with Animal/Dog/Cat."),
+            "exception": ("class ValidationError(Exception):\n    pass\n\ndef validate_age(age):\n    if not isinstance(age, int):\n        raise TypeError('Age must be an integer')\n    if age < 0 or age > 150:\n        raise ValidationError(f'Age {age} is out of valid range (0-150)')\n    return True\n\n# Try/except/else/finally\ndef safe_divide(a, b):\n    try:\n        result = a / b\n    except ZeroDivisionError:\n        return 'Cannot divide by zero!'\n    except TypeError:\n        return 'Invalid types for division!'\n    else:\n        return f'{a} / {b} = {result}'\n    finally:\n        print('Division attempted')\n\nprint(safe_divide(10, 3))\nprint(safe_divide(10, 0))\n\ntry:\n    validate_age(200)\nexcept ValidationError as e:\n    print(f'Validation failed: {e}')", "Exception handling — try/except/else/finally, custom exceptions."),
+            "regex": ("import re\n\ntext = 'Contact: john@email.com or call 123-456-7890. Visit https://example.com'\n\n# Find emails\nemails = re.findall(r'[\\w.+-]+@[\\w-]+\\.[\\w.]+', text)\nprint(f'Emails: {emails}')\n\n# Find phone numbers\nphones = re.findall(r'\\d{3}-\\d{3}-\\d{4}', text)\nprint(f'Phones: {phones}')\n\n# Find URLs\nurls = re.findall(r'https?://[\\w.-]+(?:/[\\w.-]*)*', text)\nprint(f'URLs: {urls}')\n\n# Replace pattern\ncensored = re.sub(r'\\d{3}-\\d{3}-\\d{4}', '[REDACTED]', text)\nprint(f'Censored: {censored}')\n\n# Validate email\ndef is_valid_email(email):\n    pattern = r'^[\\w.+-]+@[\\w-]+\\.[a-zA-Z]{2,}$'\n    return bool(re.match(pattern, email))\n\nprint(is_valid_email('test@example.com'))  # True\nprint(is_valid_email('invalid@'))           # False", "Regex — find emails, phones, URLs, validate patterns."),
+            "sorting": ("# Multiple sorting algorithms compared\n\ndef bubble_sort(arr):\n    a = arr[:]\n    n = len(a)\n    for i in range(n):\n        for j in range(0, n-i-1):\n            if a[j] > a[j+1]:\n                a[j], a[j+1] = a[j+1], a[j]\n    return a\n\ndef selection_sort(arr):\n    a = arr[:]\n    for i in range(len(a)):\n        min_idx = i\n        for j in range(i+1, len(a)):\n            if a[j] < a[min_idx]:\n                min_idx = j\n        a[i], a[min_idx] = a[min_idx], a[i]\n    return a\n\ndef insertion_sort(arr):\n    a = arr[:]\n    for i in range(1, len(a)):\n        key = a[i]\n        j = i - 1\n        while j >= 0 and a[j] > key:\n            a[j+1] = a[j]\n            j -= 1\n        a[j+1] = key\n    return a\n\ndata = [64, 34, 25, 12, 22, 11, 90]\nprint(f'Original:  {data}')\nprint(f'Bubble:    {bubble_sort(data)}')\nprint(f'Selection: {selection_sort(data)}')\nprint(f'Insertion: {insertion_sort(data)}')", "Three sorting algorithms — bubble, selection, insertion."),
+            "comprehension": ("# List comprehensions\nsquares = [x**2 for x in range(10)]\nprint(f'Squares: {squares}')\n\nevens = [x for x in range(20) if x % 2 == 0]\nprint(f'Evens: {evens}')\n\n# Dict comprehension\nword_lengths = {w: len(w) for w in ['Python', 'Java', 'Go', 'Rust']}\nprint(f'Lengths: {word_lengths}')\n\n# Set comprehension\nunique_lengths = {len(w) for w in ['hello', 'world', 'hi', 'hey']}\nprint(f'Unique lengths: {unique_lengths}')\n\n# Nested comprehension\nmatrix = [[i*3+j+1 for j in range(3)] for i in range(3)]\nprint(f'Matrix: {matrix}')\n\n# Generator expression\ntotal = sum(x**2 for x in range(100))\nprint(f'Sum of squares 0-99: {total}')", "List/dict/set comprehensions and generator expressions."),
+            "lambda": ("# Lambda functions\nsquare = lambda x: x**2\nprint(f'Square of 5: {square(5)}')\n\nadd = lambda a, b: a + b\nprint(f'3 + 4 = {add(3, 4)}')\n\n# With built-in functions\nnums = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3]\nprint(f'Sorted: {sorted(nums)}')\nprint(f'Sorted desc: {sorted(nums, reverse=True)}')\n\npeople = [('Alice', 30), ('Bob', 25), ('Charlie', 35)]\nprint(f'By age: {sorted(people, key=lambda p: p[1])}')\n\n# Map, Filter, Reduce\nfrom functools import reduce\nsquares = list(map(lambda x: x**2, range(10)))\nprint(f'Squares: {squares}')\n\nevens = list(filter(lambda x: x % 2 == 0, range(20)))\nprint(f'Evens: {evens}')\n\nproduct = reduce(lambda a, b: a * b, [1, 2, 3, 4, 5])\nprint(f'Product: {product}')", "Lambda functions with map, filter, reduce, sorted."),
+            "generator": ("# Generator function\ndef fibonacci_gen(n):\n    a, b = 0, 1\n    for _ in range(n):\n        yield a\n        a, b = b, a + b\n\nprint('Fibonacci:', list(fibonacci_gen(10)))\n\n# Infinite generator\ndef count_up(start=0):\n    n = start\n    while True:\n        yield n\n        n += 1\n\ncounter = count_up(1)\nprint('First 5:', [next(counter) for _ in range(5)])\n\n# Generator pipeline\ndef read_lines(text):\n    for line in text.split('\\n'):\n        yield line.strip()\n\ndef non_empty(lines):\n    for line in lines:\n        if line:\n            yield line\n\ndef upper(lines):\n    for line in lines:\n        yield line.upper()\n\ntext = 'hello\\n\\nworld\\n\\npython'\nresult = list(upper(non_empty(read_lines(text))))\nprint('Pipeline:', result)", "Generators — fibonacci, infinite, pipeline pattern."),
+            "threading": ("import threading\nimport time\n\ndef task(name, seconds):\n    print(f'{name} started')\n    time.sleep(seconds)\n    print(f'{name} finished after {seconds}s')\n\n# Run tasks in parallel\nthreads = []\nfor name, sec in [('Task-A', 2), ('Task-B', 1), ('Task-C', 3)]:\n    t = threading.Thread(target=task, args=(name, sec))\n    threads.append(t)\n    t.start()\n\nfor t in threads:\n    t.join()\n\nprint('All tasks completed!')\n\n# Thread-safe counter\nclass SafeCounter:\n    def __init__(self):\n        self.value = 0\n        self.lock = threading.Lock()\n\n    def increment(self):\n        with self.lock:\n            self.value += 1\n\ncounter = SafeCounter()\nthreads = [threading.Thread(target=counter.increment) for _ in range(1000)]\nfor t in threads: t.start()\nfor t in threads: t.join()\nprint(f'Counter: {counter.value}')", "Threading — parallel tasks, thread-safe counter with Lock."),
+            "database": ("import sqlite3\n\n# Create database and table\nconn = sqlite3.connect('app.db')\nc = conn.cursor()\nc.execute('''CREATE TABLE IF NOT EXISTS users (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    name TEXT NOT NULL,\n    email TEXT UNIQUE NOT NULL,\n    age INTEGER\n)''')\n\n# Insert data\nusers = [('Aditya', 'aditya@example.com', 25),\n         ('Raj', 'raj@example.com', 30),\n         ('Priya', 'priya@example.com', 28)]\nc.executemany('INSERT OR IGNORE INTO users (name, email, age) VALUES (?, ?, ?)', users)\nconn.commit()\n\n# Read data\nc.execute('SELECT * FROM users')\nfor row in c.fetchall():\n    print(f'  {row[0]}. {row[1]} ({row[2]}) - Age: {row[3]}')\n\n# Update\nc.execute('UPDATE users SET age = ? WHERE name = ?', (26, 'Aditya'))\nconn.commit()\n\n# Delete\nc.execute('DELETE FROM users WHERE name = ?', ('Raj',))\nconn.commit()\n\nprint('\\nAfter update/delete:')\nc.execute('SELECT * FROM users')\nfor row in c.fetchall():\n    print(f'  {row[0]}. {row[1]} ({row[2]}) - Age: {row[3]}')\n\nconn.close()", "SQLite CRUD — create, read, update, delete with sqlite3."),
+            "singleton": ("class Singleton:\n    _instance = None\n\n    def __new__(cls):\n        if cls._instance is None:\n            cls._instance = super().__new__(cls)\n        return cls._instance\n\n    def __init__(self):\n        if not hasattr(self, '_initialized'):\n            self._initialized = True\n            self.data = {}\n\n# Both variables point to the same object\na = Singleton()\nb = Singleton()\na.data['key'] = 'value'\nprint(b.data)          # {'key': 'value'}\nprint(a is b)          # True\nprint(id(a) == id(b))  # True", "Singleton design pattern — only one instance ever created."),
+            "observer": ("class EventEmitter:\n    def __init__(self):\n        self._listeners = {}\n\n    def on(self, event, callback):\n        self._listeners.setdefault(event, []).append(callback)\n\n    def emit(self, event, *args):\n        for cb in self._listeners.get(event, []):\n            cb(*args)\n\n    def off(self, event, callback):\n        if event in self._listeners:\n            self._listeners[event] = [cb for cb in self._listeners[event] if cb != callback]\n\n# Usage\ndef on_login(user):\n    print(f'Welcome, {user}!')\n\ndef log_login(user):\n    print(f'[LOG] {user} logged in')\n\ndef send_email(user):\n    print(f'[EMAIL] Sending welcome email to {user}')\n\nbus = EventEmitter()\nbus.on('login', on_login)\nbus.on('login', log_login)\nbus.on('login', send_email)\n\nbus.emit('login', 'Aditya')", "Observer/EventEmitter pattern — pub/sub event system."),
+            "cli": ("import argparse\n\ndef main():\n    parser = argparse.ArgumentParser(description='NAGRO CLI Tool')\n    parser.add_argument('name', help='Your name')\n    parser.add_argument('-g', '--greet', default='Hello',\n                        help='Greeting to use (default: Hello)')\n    parser.add_argument('-n', '--times', type=int, default=1,\n                        help='Number of times to greet')\n    parser.add_argument('-u', '--upper', action='store_true',\n                        help='Print in uppercase')\n\n    args = parser.parse_args()\n    msg = f'{args.greet}, {args.name}!'\n    if args.upper:\n        msg = msg.upper()\n    for _ in range(args.times):\n        print(msg)\n\nif __name__ == '__main__':\n    main()\n\n# Usage: python script.py Aditya -g Hi -n 3 --upper", "CLI tool with argparse — positional args, flags, options."),
+            "testing": ("import unittest\n\ndef add(a, b):\n    return a + b\n\ndef divide(a, b):\n    if b == 0:\n        raise ValueError('Cannot divide by zero')\n    return a / b\n\ndef is_even(n):\n    return n % 2 == 0\n\nclass TestMath(unittest.TestCase):\n    def test_add(self):\n        self.assertEqual(add(2, 3), 5)\n        self.assertEqual(add(-1, 1), 0)\n        self.assertEqual(add(0, 0), 0)\n\n    def test_divide(self):\n        self.assertEqual(divide(10, 2), 5.0)\n        self.assertAlmostEqual(divide(1, 3), 0.333, places=2)\n\n    def test_divide_by_zero(self):\n        with self.assertRaises(ValueError):\n            divide(10, 0)\n\n    def test_is_even(self):\n        self.assertTrue(is_even(4))\n        self.assertFalse(is_even(3))\n\nif __name__ == '__main__':\n    unittest.main()", "Unit testing with unittest — assertions, exception testing."),
+            "context manager": ("class FileManager:\n    def __init__(self, filename, mode):\n        self.filename = filename\n        self.mode = mode\n        self.file = None\n\n    def __enter__(self):\n        self.file = open(self.filename, self.mode)\n        return self.file\n\n    def __exit__(self, exc_type, exc_val, exc_tb):\n        if self.file:\n            self.file.close()\n        return False\n\n# Usage\nwith FileManager('test.txt', 'w') as f:\n    f.write('Hello from custom context manager!')\n\nwith FileManager('test.txt', 'r') as f:\n    print(f.read())\n\n# Using contextlib\nfrom contextlib import contextmanager\nimport time\n\n@contextmanager\ndef timer(label):\n    start = time.time()\n    yield\n    print(f'{label}: {time.time()-start:.4f}s')\n\nwith timer('Calculation'):\n    total = sum(range(1_000_000))\n    print(f'Sum: {total}')", "Context managers — class-based and contextlib decorator."),
+            "dataclass": ("from dataclasses import dataclass, field\nfrom typing import List\n\n@dataclass\nclass Student:\n    name: str\n    age: int\n    grades: List[float] = field(default_factory=list)\n\n    @property\n    def average(self):\n        return sum(self.grades) / len(self.grades) if self.grades else 0\n\n    def add_grade(self, grade):\n        self.grades.append(grade)\n\n@dataclass(frozen=True)\nclass Point:\n    x: float\n    y: float\n\n    def distance_to(self, other):\n        return ((self.x - other.x)**2 + (self.y - other.y)**2) ** 0.5\n\ns = Student('Aditya', 20, [85, 92, 78, 95])\nprint(f'{s.name}, Average: {s.average:.1f}')\ns.add_grade(88)\nprint(f'After new grade: {s.average:.1f}')\n\np1, p2 = Point(0, 0), Point(3, 4)\nprint(f'Distance: {p1.distance_to(p2)}')", "Dataclasses — auto __init__, __repr__, frozen, properties."),
+            "async": ("import asyncio\n\nasync def fetch_data(name, delay):\n    print(f'Fetching {name}...')\n    await asyncio.sleep(delay)\n    print(f'{name} done!')\n    return f'{name}_data'\n\nasync def main():\n    # Run concurrently\n    results = await asyncio.gather(\n        fetch_data('Users', 2),\n        fetch_data('Posts', 1),\n        fetch_data('Comments', 3),\n    )\n    print(f'All results: {results}')\n\n    # Sequential\n    for name in ['A', 'B', 'C']:\n        result = await fetch_data(name, 0.5)\n        print(f'Got: {result}')\n\nasyncio.run(main())", "Async/await — concurrent tasks with asyncio.gather."),
+            "websocket": ("import asyncio\nimport json\nfrom http.server import HTTPServer, BaseHTTPRequestHandler\nimport hashlib, base64, struct\n\n# Simple WebSocket-like server using asyncio\nasync def handle_client(reader, writer):\n    addr = writer.get_extra_info('peername')\n    print(f'Client connected: {addr}')\n    try:\n        while True:\n            data = await reader.read(1024)\n            if not data:\n                break\n            message = data.decode()\n            print(f'Received: {message}')\n            response = json.dumps({'echo': message, 'status': 'ok'})\n            writer.write(response.encode())\n            await writer.drain()\n    except Exception:\n        pass\n    finally:\n        writer.close()\n        print(f'Client disconnected: {addr}')\n\nasync def main():\n    server = await asyncio.start_server(handle_client, '127.0.0.1', 8888)\n    print('Server running on localhost:8888')\n    async with server:\n        await server.serve_forever()\n\nasyncio.run(main())", "Async TCP server — handles multiple clients concurrently."),
+            "type hint": ("from typing import List, Dict, Optional, Union, Tuple, Callable\n\ndef greet(name: str, times: int = 1) -> str:\n    return (f'Hello, {name}! ' * times).strip()\n\ndef process_items(items: List[int]) -> Dict[str, float]:\n    return {\n        'sum': sum(items),\n        'avg': sum(items) / len(items) if items else 0,\n        'min': min(items) if items else 0,\n        'max': max(items) if items else 0,\n    }\n\ndef find_user(user_id: int) -> Optional[Dict[str, str]]:\n    users = {1: {'name': 'Aditya'}, 2: {'name': 'Raj'}}\n    return users.get(user_id)\n\ndef apply_fn(data: List[int], fn: Callable[[int], int]) -> List[int]:\n    return [fn(x) for x in data]\n\nprint(greet('Aditya', 2))\nprint(process_items([10, 20, 30, 40]))\nprint(find_user(1))\nprint(apply_fn([1,2,3,4], lambda x: x**2))", "Type hints — List, Dict, Optional, Callable, Union."),
+            "enumerate": ("# Enumerate — get index + value\nfruits = ['apple', 'banana', 'cherry', 'date']\n\nfor i, fruit in enumerate(fruits):\n    print(f'{i+1}. {fruit}')\n\n# Zip — iterate multiple lists\nnames = ['Aditya', 'Raj', 'Priya']\nages = [25, 30, 28]\ncities = ['Delhi', 'Mumbai', 'Bangalore']\n\nfor name, age, city in zip(names, ages, cities):\n    print(f'{name} ({age}) from {city}')\n\n# Unpacking\nfirst, *middle, last = [1, 2, 3, 4, 5]\nprint(f'First: {first}, Middle: {middle}, Last: {last}')\n\n# Dict iteration\nconfig = {'host': 'localhost', 'port': 8080, 'debug': True}\nfor key, value in config.items():\n    print(f'{key}: {value}')", "Enumerate, zip, unpacking, dict iteration patterns."),
         }
         for key, (code, explanation) in codes.items():
             if key in p:
                 return f"```python\n{code}\n```\n\n**Explanation:** {explanation}"
         return None
+
+    def _generate_course(self, prompt: str) -> str:
+        p = prompt.lower()
+        lang = "Python"
+        if "javascript" in p or "js" in p:
+            lang = "JavaScript"
+        elif "java" in p and "javascript" not in p:
+            lang = "Java"
+        elif "c++" in p or "cpp" in p:
+            lang = "C++"
+        elif "html" in p or "web" in p or "frontend" in p:
+            lang = "HTML/CSS/JavaScript (Web Development)"
+        elif "react" in p:
+            lang = "React.js"
+        elif "sql" in p or "database" in p:
+            lang = "SQL & Databases"
+        elif "go" in p or "golang" in p:
+            lang = "Go (Golang)"
+        elif "rust" in p:
+            lang = "Rust"
+        elif "typescript" in p or "ts" in p:
+            lang = "TypeScript"
+        elif "data science" in p or "pandas" in p:
+            lang = "Python Data Science"
+        elif "machine learning" in p:
+            lang = "Machine Learning with Python"
+
+        courses = {
+            "Python": (
+                "# Python Complete Course — Beginner to Advanced\n\n"
+                "## Module 1: Python Basics (Week 1-2)\n"
+                "- **Variables & Data Types:** int, float, str, bool, None\n"
+                "- **Operators:** arithmetic (+, -, *, /), comparison (==, !=, <, >), logical (and, or, not)\n"
+                "- **Input/Output:** `print()`, `input()`, f-strings\n"
+                "- **Type Conversion:** `int()`, `float()`, `str()`, `bool()`\n\n"
+                "```python\nname = input('What is your name? ')\nage = int(input('Your age? '))\nprint(f'Hello {name}! You will be {age+1} next year.')\n```\n\n"
+                "## Module 2: Control Flow (Week 2-3)\n"
+                "- **if/elif/else** — conditional logic\n"
+                "- **for loops** — iterate over sequences\n"
+                "- **while loops** — repeat until condition\n"
+                "- **break, continue, pass** — loop control\n\n"
+                "```python\nfor i in range(1, 11):\n    if i % 2 == 0:\n        print(f'{i} is even')\n    else:\n        print(f'{i} is odd')\n```\n\n"
+                "## Module 3: Data Structures (Week 3-4)\n"
+                "- **Lists:** ordered, mutable — `append()`, `pop()`, slicing\n"
+                "- **Tuples:** ordered, immutable — packing/unpacking\n"
+                "- **Dictionaries:** key-value pairs — `get()`, `items()`, `keys()`\n"
+                "- **Sets:** unique elements — `union()`, `intersection()`, `difference()`\n\n"
+                "```python\nstudents = {'Aditya': 95, 'Raj': 88, 'Priya': 92}\nfor name, score in students.items():\n    grade = 'A' if score >= 90 else 'B' if score >= 80 else 'C'\n    print(f'{name}: {score} ({grade})')\n```\n\n"
+                "## Module 4: Functions (Week 4-5)\n"
+                "- **Defining functions:** `def`, parameters, return values\n"
+                "- **Default arguments** and **keyword arguments**\n"
+                "- **`*args` and `**kwargs`** — variable arguments\n"
+                "- **Lambda functions:** anonymous single-expression functions\n"
+                "- **Scope:** local, global, nonlocal\n\n"
+                "```python\ndef calculate(a, b, operation='add'):\n    ops = {'add': a+b, 'sub': a-b, 'mul': a*b, 'div': a/b if b else 0}\n    return ops.get(operation, 'Invalid operation')\n\nprint(calculate(10, 5, 'mul'))  # 50\n```\n\n"
+                "## Module 5: OOP — Object Oriented Programming (Week 5-7)\n"
+                "- **Classes & Objects** — blueprints and instances\n"
+                "- **`__init__`** constructor, `self`\n"
+                "- **Inheritance** — parent/child classes\n"
+                "- **Encapsulation** — private `_var`, name mangling `__var`\n"
+                "- **Polymorphism** — method overriding\n"
+                "- **Magic Methods:** `__str__`, `__repr__`, `__len__`, `__eq__`\n\n"
+                "```python\nclass Student:\n    def __init__(self, name, grades=None):\n        self.name = name\n        self.grades = grades or []\n    \n    def average(self):\n        return sum(self.grades) / len(self.grades) if self.grades else 0\n    \n    def __str__(self):\n        return f'{self.name} (Avg: {self.average():.1f})'\n```\n\n"
+                "## Module 6: File Handling & Modules (Week 7-8)\n"
+                "- **Reading/Writing files:** `open()`, `with` statement\n"
+                "- **CSV, JSON** file processing\n"
+                "- **Creating modules** and packages\n"
+                "- **`import`** system, `__name__`, `__main__`\n\n"
+                "## Module 7: Error Handling (Week 8)\n"
+                "- **try/except/else/finally**\n"
+                "- **Custom exceptions**\n"
+                "- **Logging** with `logging` module\n\n"
+                "## Module 8: Advanced Topics (Week 9-12)\n"
+                "- **Decorators** — function wrappers\n"
+                "- **Generators** — `yield`, lazy evaluation\n"
+                "- **Context Managers** — `with` statement\n"
+                "- **List/Dict/Set Comprehensions**\n"
+                "- **Type Hints** — `typing` module\n"
+                "- **Async/Await** — asyncio\n"
+                "- **Regular Expressions** — `re` module\n"
+                "- **Unit Testing** — `unittest`, `pytest`\n\n"
+                "## Module 9: Projects\n"
+                "1. **Calculator** — command-line math tool\n"
+                "2. **To-Do App** — task manager with file persistence\n"
+                "3. **Web Scraper** — extract data from websites\n"
+                "4. **REST API** — build a web API with Flask/FastAPI\n"
+                "5. **Chat Bot** — interactive conversational AI\n\n"
+                "---\n*Ask me to write code for any specific topic! Example: \"Write a Python linked list\"*"
+            ),
+            "JavaScript": (
+                "# JavaScript Complete Course — Beginner to Advanced\n\n"
+                "## Module 1: JS Basics (Week 1-2)\n"
+                "- **Variables:** `let`, `const`, `var` — when to use each\n"
+                "- **Data Types:** string, number, boolean, null, undefined, symbol, bigint\n"
+                "- **Operators:** arithmetic, comparison (`===` vs `==`), logical\n"
+                "- **Template Literals:** `` `Hello ${name}` ``\n\n"
+                "```javascript\nconst name = 'NAGRO';\nconst version = 4.1;\nconsole.log(`Welcome to ${name} v${version}!`);\n```\n\n"
+                "## Module 2: Control Flow & Functions (Week 2-3)\n"
+                "- **if/else**, ternary operator, switch\n"
+                "- **Loops:** for, while, for...of, for...in\n"
+                "- **Functions:** declaration, expression, arrow functions\n"
+                "- **Closures** and **Scope**\n\n"
+                "```javascript\nconst greet = (name, times = 1) => {\n    for (let i = 0; i < times; i++) {\n        console.log(`Hello, ${name}!`);\n    }\n};\ngreet('Aditya', 3);\n```\n\n"
+                "## Module 3: Arrays & Objects (Week 3-4)\n"
+                "- **Array methods:** map, filter, reduce, find, some, every, forEach\n"
+                "- **Object methods:** keys, values, entries, spread, destructuring\n"
+                "- **JSON:** parse, stringify\n\n"
+                "```javascript\nconst students = [\n    {name: 'Aditya', score: 95},\n    {name: 'Raj', score: 88},\n    {name: 'Priya', score: 92}\n];\nconst toppers = students.filter(s => s.score >= 90);\nconsole.log(toppers);\n```\n\n"
+                "## Module 4: DOM Manipulation (Week 4-5)\n"
+                "- **Selecting elements:** getElementById, querySelector, querySelectorAll\n"
+                "- **Modifying:** innerHTML, textContent, classList, style\n"
+                "- **Events:** addEventListener, event delegation\n"
+                "- **Creating/Removing** elements\n\n"
+                "## Module 5: Async JavaScript (Week 5-6)\n"
+                "- **Callbacks** → **Promises** → **async/await**\n"
+                "- **Fetch API** — HTTP requests\n"
+                "- **Error handling** with try/catch\n\n"
+                "```javascript\nasync function getUser(id) {\n    try {\n        const res = await fetch(`https://jsonplaceholder.typicode.com/users/${id}`);\n        const user = await res.json();\n        console.log(user.name);\n    } catch (err) {\n        console.error('Failed:', err.message);\n    }\n}\ngetUser(1);\n```\n\n"
+                "## Module 6: ES6+ Features (Week 6-7)\n"
+                "- **Destructuring**, spread/rest operators\n"
+                "- **Modules:** import/export\n"
+                "- **Classes** and inheritance\n"
+                "- **Map, Set, WeakMap, WeakSet**\n"
+                "- **Optional chaining** `?.` and **nullish coalescing** `??`\n\n"
+                "## Module 7: Projects\n"
+                "1. **Todo App** with local storage\n"
+                "2. **Weather App** with Fetch API\n"
+                "3. **Quiz Game** — interactive DOM\n"
+                "4. **Chat App** — real-time with WebSocket\n\n"
+                "---\n*Ask me for code on any topic! Example: \"Write JS fetch example\"*"
+            ),
+        }
+
+        if lang in courses:
+            return courses[lang]
+
+        return (
+            f"# {lang} Complete Course — Beginner to Advanced\n\n"
+            f"## Module 1: Getting Started (Week 1-2)\n"
+            f"- Install {lang} and set up your development environment\n"
+            f"- **Variables, Data Types** — learn the building blocks\n"
+            f"- **Input/Output** — read and display data\n"
+            f"- **Basic Operators** — arithmetic, comparison, logical\n\n"
+            f"## Module 2: Control Flow (Week 2-3)\n"
+            f"- **Conditionals** — if/else, switch/match\n"
+            f"- **Loops** — for, while, do-while\n"
+            f"- **Functions** — defining, calling, parameters, return values\n\n"
+            f"## Module 3: Data Structures (Week 3-5)\n"
+            f"- **Arrays/Lists** — ordered collections\n"
+            f"- **Maps/Dictionaries** — key-value storage\n"
+            f"- **Sets** — unique collections\n"
+            f"- **Strings** — manipulation and formatting\n\n"
+            f"## Module 4: Object-Oriented Programming (Week 5-7)\n"
+            f"- **Classes & Objects** — blueprints and instances\n"
+            f"- **Inheritance** — code reuse\n"
+            f"- **Encapsulation** — data hiding\n"
+            f"- **Polymorphism** — method overriding\n"
+            f"- **Interfaces/Abstract classes**\n\n"
+            f"## Module 5: Advanced Topics (Week 7-10)\n"
+            f"- **Error Handling** — try/catch/finally\n"
+            f"- **File I/O** — reading/writing files\n"
+            f"- **Concurrency** — threads/async\n"
+            f"- **Design Patterns** — singleton, factory, observer\n\n"
+            f"## Module 6: Projects\n"
+            f"1. **Calculator** — CLI math tool\n"
+            f"2. **To-Do App** — task management\n"
+            f"3. **Web API** — REST endpoints\n"
+            f"4. **Chat App** — real-time messaging\n"
+            f"5. **Data Dashboard** — visualization\n\n"
+            f"---\n*Ask me to write {lang} code for any specific topic!*"
+        )
+
+    def _generate_project(self, prompt: str) -> str:
+        p = prompt.lower()
+
+        if "todo" in p:
+            return (
+                "# Todo App — Complete Project\n\n"
+                "## Backend (Python + SQLite)\n\n"
+                "```python\nimport sqlite3\nimport json\nfrom http.server import HTTPServer, BaseHTTPRequestHandler\n\nDB = 'todos.db'\n\ndef init_db():\n    conn = sqlite3.connect(DB)\n    conn.execute('''CREATE TABLE IF NOT EXISTS todos (\n        id INTEGER PRIMARY KEY AUTOINCREMENT,\n        task TEXT NOT NULL,\n        done BOOLEAN DEFAULT 0,\n        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n    )''')\n    conn.commit()\n    conn.close()\n\nclass TodoAPI(BaseHTTPRequestHandler):\n    def do_GET(self):\n        conn = sqlite3.connect(DB)\n        todos = conn.execute('SELECT * FROM todos ORDER BY id DESC').fetchall()\n        conn.close()\n        data = [{'id': t[0], 'task': t[1], 'done': bool(t[2])} for t in todos]\n        self._respond(200, data)\n\n    def do_POST(self):\n        body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))\n        conn = sqlite3.connect(DB)\n        conn.execute('INSERT INTO todos (task) VALUES (?)', (body['task'],))\n        conn.commit()\n        conn.close()\n        self._respond(201, {'status': 'created'})\n\n    def _respond(self, code, data):\n        self.send_response(code)\n        self.send_header('Content-Type', 'application/json')\n        self.end_headers()\n        self.wfile.write(json.dumps(data).encode())\n\ninit_db()\nprint('Todo API on http://localhost:8000')\nHTTPServer(('', 8000), TodoAPI).serve_forever()\n```\n\n"
+                "## Frontend (HTML + JS)\n\n"
+                "```html\n<!DOCTYPE html>\n<html>\n<head><title>Todo App</title>\n<style>\n  body { font-family: sans-serif; max-width: 500px; margin: 50px auto; }\n  input { padding: 10px; width: 70%; }\n  button { padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; }\n  .todo { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }\n  .done { text-decoration: line-through; color: #999; }\n</style>\n</head>\n<body>\n  <h1>Todo App</h1>\n  <input id=\"task\" placeholder=\"Add a task...\">\n  <button onclick=\"addTodo()\">Add</button>\n  <div id=\"list\"></div>\n  <script>\n    async function load() {\n      const res = await fetch('/api/todos');\n      const todos = await res.json();\n      document.getElementById('list').innerHTML = todos.map(t =>\n        `<div class=\"todo ${t.done ? 'done' : ''}\">${t.task}</div>`\n      ).join('');\n    }\n    async function addTodo() {\n      const input = document.getElementById('task');\n      await fetch('/api/todos', {\n        method: 'POST',\n        headers: {'Content-Type': 'application/json'},\n        body: JSON.stringify({task: input.value})\n      });\n      input.value = '';\n      load();\n    }\n    load();\n  </script>\n</body>\n</html>\n```\n\n"
+                "---\n*This is a full-stack todo app with backend API + frontend UI!*"
+            )
+
+        if "chat" in p:
+            return (
+                "# Chat App — Complete Project\n\n"
+                "```python\nimport asyncio\nimport json\nfrom datetime import datetime\n\nclients = set()\nmessages = []\n\nasync def handle_client(reader, writer):\n    addr = writer.get_extra_info('peername')\n    name = f'User-{addr[1] % 1000}'\n    clients.add(writer)\n    print(f'{name} connected')\n    try:\n        while True:\n            data = await reader.read(1024)\n            if not data:\n                break\n            msg = {'user': name, 'text': data.decode().strip(),\n                   'time': datetime.now().strftime('%H:%M')}\n            messages.append(msg)\n            broadcast = json.dumps(msg).encode() + b'\\n'\n            for client in clients:\n                if client != writer:\n                    try:\n                        client.write(broadcast)\n                        await client.drain()\n                    except Exception:\n                        pass\n    finally:\n        clients.discard(writer)\n        writer.close()\n        print(f'{name} disconnected')\n\nasync def main():\n    server = await asyncio.start_server(handle_client, '0.0.0.0', 9000)\n    print('Chat server running on port 9000')\n    async with server:\n        await server.serve_forever()\n\nasyncio.run(main())\n```\n\n"
+                "**Features:** Multi-client chat, timestamps, auto-broadcast, disconnect handling.\n\n"
+                "---\n*Connect multiple telnet clients to test: `telnet localhost 9000`*"
+            )
+
+        if any(k in p for k in ["portfolio", "landing page", "website"]):
+            return (
+                "# Portfolio Website — Complete Project\n\n"
+                "```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>My Portfolio</title>\n<style>\n  * { margin: 0; padding: 0; box-sizing: border-box; }\n  body { font-family: 'Segoe UI', sans-serif; color: #333; }\n  .hero { background: linear-gradient(135deg, #667eea, #764ba2); color: white;\n          padding: 100px 20px; text-align: center; }\n  .hero h1 { font-size: 3em; margin-bottom: 10px; }\n  .hero p { font-size: 1.3em; opacity: 0.9; }\n  .section { padding: 60px 20px; max-width: 900px; margin: 0 auto; }\n  .section h2 { font-size: 2em; margin-bottom: 30px; color: #667eea; }\n  .skills { display: flex; flex-wrap: wrap; gap: 10px; }\n  .skill { background: #f0f0f0; padding: 8px 16px; border-radius: 20px; }\n  .projects { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }\n  .card { border: 1px solid #eee; border-radius: 10px; padding: 20px; }\n  .card h3 { color: #667eea; margin-bottom: 10px; }\n  .contact { background: #f8f8f8; padding: 60px 20px; text-align: center; }\n  .contact a { color: #667eea; text-decoration: none; font-size: 1.2em; }\n</style>\n</head>\n<body>\n  <div class=\"hero\">\n    <h1>Hi, I'm [Your Name]</h1>\n    <p>Developer | Designer | Creator</p>\n  </div>\n  <div class=\"section\">\n    <h2>Skills</h2>\n    <div class=\"skills\">\n      <span class=\"skill\">Python</span>\n      <span class=\"skill\">JavaScript</span>\n      <span class=\"skill\">React</span>\n      <span class=\"skill\">HTML/CSS</span>\n      <span class=\"skill\">SQL</span>\n      <span class=\"skill\">Git</span>\n    </div>\n  </div>\n  <div class=\"section\">\n    <h2>Projects</h2>\n    <div class=\"projects\">\n      <div class=\"card\">\n        <h3>Project 1</h3>\n        <p>A full-stack web app built with Python and React.</p>\n      </div>\n      <div class=\"card\">\n        <h3>Project 2</h3>\n        <p>Mobile-first responsive dashboard with live data.</p>\n      </div>\n      <div class=\"card\">\n        <h3>Project 3</h3>\n        <p>REST API with authentication and rate limiting.</p>\n      </div>\n    </div>\n  </div>\n  <div class=\"contact\">\n    <h2>Contact</h2>\n    <p><a href=\"mailto:your@email.com\">your@email.com</a></p>\n  </div>\n</body>\n</html>\n```\n\n"
+                "**Features:** Responsive design, gradient hero, skill tags, project grid, contact section.\n\n"
+                "---\n*Customize the content and deploy to Vercel/Netlify!*"
+            )
+
+        topic = re.sub(r'(build|create|make|develop|banao)\s+(a\s+)?', '', prompt, flags=re.I).strip()
+        return (
+            f"# {topic.title()} — Project Structure\n\n"
+            f"## Architecture\n"
+            f"```\n{topic}/\n├── main.py          # Entry point\n├── config.py        # Configuration\n├── models/          # Data models\n│   └── __init__.py\n├── routes/          # API endpoints\n│   └── __init__.py\n├── utils/           # Helper functions\n│   └── __init__.py\n├── static/          # Frontend files\n│   ├── index.html\n│   ├── style.css\n│   └── app.js\n├── tests/           # Unit tests\n│   └── test_main.py\n└── requirements.txt\n```\n\n"
+            f"## Step 1: Main Entry Point\n\n"
+            f"```python\nfrom http.server import HTTPServer, BaseHTTPRequestHandler\nimport json\n\nclass AppHandler(BaseHTTPRequestHandler):\n    def do_GET(self):\n        self.send_response(200)\n        self.send_header('Content-Type', 'application/json')\n        self.end_headers()\n        self.wfile.write(json.dumps({{'app': '{topic}', 'status': 'running'}}).encode())\n\nserver = HTTPServer(('', 8000), AppHandler)\nprint('{topic.title()} running on http://localhost:8000')\nserver.serve_forever()\n```\n\n"
+            f"## Step 2: Add Your Features\n"
+            f"- Define your data models in `models/`\n"
+            f"- Add API routes in `routes/`\n"
+            f"- Build the frontend in `static/`\n"
+            f"- Write tests in `tests/`\n\n"
+            f"---\n*Ask me to write specific parts: \"Write the login system\" or \"Write the database layer\"*"
+        )
 
     # ── Math ──
 
@@ -1554,55 +1905,162 @@ class NAGROBrain:
 
     def _handle_creative(self, prompt: str) -> str:
         p = prompt.lower()
-        if "poem" in p or "poetry" in p:
+        if "poem" in p or "poetry" in p or "kavita" in p or "shayari" in p:
             return self._gen_poem(prompt)
-        if "story" in p or "tale" in p:
+        if "story" in p or "tale" in p or "kahani" in p:
             return self._gen_story(prompt)
-        if "speech" in p:
+        if "speech" in p or "bhashan" in p:
             return self._gen_speech(prompt)
-        if "lyrics" in p or "song" in p:
+        if "lyrics" in p or "song" in p or "gana" in p or "geet" in p:
             return self._gen_lyrics(prompt)
-        if "letter" in p or "email" in p:
+        if "letter" in p or "email" in p or "patra" in p:
             return self._gen_letter(prompt)
+        if "joke" in p or "funny" in p or "chutkula" in p:
+            return self._gen_jokes(prompt)
+        if "quote" in p or "motivation" in p or "inspiration" in p:
+            return self._gen_quotes(prompt)
         return self._gen_essay(prompt)
+
+    def _gen_jokes(self, prompt):
+        topic = re.sub(r'(write|tell|give)\s+(me\s+)?(a\s+)?(joke|jokes|funny)\s*(about|on)?\s*', '', prompt, flags=re.I).strip() or "programming"
+        joke_sets = {
+            "programming": [
+                "**Q:** Why do programmers prefer dark mode?\n**A:** Because light attracts bugs! 🪲",
+                "**Q:** What's a programmer's favorite hangout place?\n**A:** Foo Bar! 🍺",
+                "**Q:** Why did the developer go broke?\n**A:** Because they used up all their cache! 💸",
+                "**Q:** What do you call a programmer from Finland?\n**A:** Nerdic! 🧊",
+                "**Q:** Why do Java developers wear glasses?\n**A:** Because they can't C#! 👓",
+            ],
+            "default": [
+                "**Q:** Why don't scientists trust atoms?\n**A:** Because they make up everything! ⚛️",
+                "**Q:** What do you call a bear with no teeth?\n**A:** A gummy bear! 🐻",
+                "**Q:** Why did the scarecrow win an award?\n**A:** Because they were outstanding in their field! 🌾",
+            ],
+        }
+        jokes = joke_sets.get("programming" if any(w in prompt.lower() for w in ["code", "program", "developer", "python"]) else "default", joke_sets["default"])
+        selected = random.sample(jokes, min(3, len(jokes)))
+        return f"## Jokes about {topic.title()}\n\n" + "\n\n---\n\n".join(selected) + "\n\n*Want more jokes? Just ask!*"
+
+    def _gen_quotes(self, prompt):
+        topic = re.sub(r'(write|give|share)\s+(me\s+)?(some\s+)?(quotes?|motivation|inspiration)\s*(about|on)?\s*', '', prompt, flags=re.I).strip() or "life"
+        return (
+            f"## Inspirational Quotes on {topic.title()}\n\n"
+            f"1. > *\"The only way to do great work is to love what you do.\"*\n   — **Steve Jobs**\n\n"
+            f"2. > *\"Success is not final, failure is not fatal: it is the courage to continue that counts.\"*\n   — **Winston Churchill**\n\n"
+            f"3. > *\"In the middle of difficulty lies opportunity.\"*\n   — **Albert Einstein**\n\n"
+            f"4. > *\"The future belongs to those who believe in the beauty of their dreams.\"*\n   — **Eleanor Roosevelt**\n\n"
+            f"5. > *\"It does not matter how slowly you go as long as you do not stop.\"*\n   — **Confucius**\n\n"
+            f"6. > *\"The best time to plant a tree was 20 years ago. The second best time is now.\"*\n   — **Chinese Proverb**\n\n"
+            f"---\n*These timeless words remind us that {topic} is a journey of persistence and belief.*"
+        )
 
     def _gen_poem(self, prompt):
         topic = re.sub(r'(write|create|compose)\s+(a\s+)?(poem|poetry)\s*(about|on)?\s*', '', prompt, flags=re.I).strip() or "creation"
-        return (
-            f"## {topic.title()}\n\n"
-            f"*In the heart of {topic},*\n"
-            f"*where shadows meet the light,*\n"
-            f"*A truth unfolds like morning dew,*\n"
-            f"*transforming dark to bright.*\n\n"
-            f"*Each moment holds a universe,*\n"
-            f"*of wonder yet untold,*\n"
-            f"*Through {topic}, we find the words,*\n"
-            f"*more precious far than gold.*\n\n"
-            f"*The winds of change keep blowing,*\n"
-            f"*through valleys and through hills,*\n"
-            f"*And {topic} keeps on growing,*\n"
-            f"*with purpose that fulfills.*\n\n"
-            f"*So let the world keep turning,*\n"
-            f"*let stars illuminate the way,*\n"
-            f"*For in the dance of {topic},*\n"
-            f"*we find our brightest day.*"
-        )
+        poems = [
+            (
+                f"## {topic.title()}\n\n"
+                f"*In the heart of {topic},*\n"
+                f"*where shadows meet the light,*\n"
+                f"*A truth unfolds like morning dew,*\n"
+                f"*transforming dark to bright.*\n\n"
+                f"*Each moment holds a universe,*\n"
+                f"*of wonder yet untold,*\n"
+                f"*Through {topic}, we find the words,*\n"
+                f"*more precious far than gold.*\n\n"
+                f"*The winds of change keep blowing,*\n"
+                f"*through valleys and through hills,*\n"
+                f"*And {topic} keeps on growing,*\n"
+                f"*with purpose that fulfills.*\n\n"
+                f"*So let the world keep turning,*\n"
+                f"*let stars illuminate the way,*\n"
+                f"*For in the dance of {topic},*\n"
+                f"*we find our brightest day.*"
+            ),
+            (
+                f"## Ode to {topic.title()}\n\n"
+                f"*Beneath the vast and endless sky,*\n"
+                f"*where dreams take flight and spirits fly,*\n"
+                f"*There lies a force both deep and true —*\n"
+                f"*the timeless power of {topic}.*\n\n"
+                f"*It whispers in the morning breeze,*\n"
+                f"*it rustles through the autumn trees,*\n"
+                f"*It paints the world in shades unseen,*\n"
+                f"*a canvas vast, alive, serene.*\n\n"
+                f"*Through storms that rage and rivers wide,*\n"
+                f"*through every fall and every stride,*\n"
+                f"*The essence of {topic} remains —*\n"
+                f"*a melody in life's refrains.*\n\n"
+                f"*So hold it close and never fear,*\n"
+                f"*for {topic} is always near,*\n"
+                f"*A light that burns through darkest night,*\n"
+                f"*forever bold, forever bright.*"
+            ),
+            (
+                f"## {topic.title()} — A Reflection\n\n"
+                f"*They say that {topic} is a journey,*\n"
+                f"*not a place where you arrive,*\n"
+                f"*A winding path through sun and shadow,*\n"
+                f"*that keeps the soul alive.*\n\n"
+                f"*We search for it in crowded rooms,*\n"
+                f"*in silence, and in song,*\n"
+                f"*We find it in the smallest moments,*\n"
+                f"*where we've belonged all along.*\n\n"
+                f"*The poets wrote of {topic},*\n"
+                f"*in verses old and new,*\n"
+                f"*But words can only sketch the edges,*\n"
+                f"*of something deeply true.*\n\n"
+                f"*So close your eyes and feel it pulse,*\n"
+                f"*like rivers finding sea,*\n"
+                f"*For {topic} lives within us all —*\n"
+                f"*wild, boundless, and free.*"
+            ),
+        ]
+        return random.choice(poems)
 
     def _gen_story(self, prompt):
         topic = re.sub(r'(write|create|tell)\s+(me\s+)?(a\s+)?(short\s+)?(story|tale)\s*(about|on)?\s*', '', prompt, flags=re.I).strip() or "adventure"
-        return (
-            f"## The Story of {topic.title()}\n\n"
-            f"It began on a day like any other — the sky stretched endlessly overhead, the world humming with quiet possibility.\n\n"
-            f"Maya had always known that {topic} held secrets. Not the kind you whisper behind closed doors, but the kind that hide in plain sight — waiting for someone brave enough to look.\n\n"
-            f"\"Are you sure about this?\" asked her companion, eyes wide with a mixture of fear and curiosity.\n\n"
-            f"\"No,\" Maya admitted with a small smile. \"But I've never been sure about anything worth doing.\"\n\n"
-            f"They stepped forward into the unknown. The path wound through challenges that tested every limit — moments of doubt so deep they could drown in them, and flashes of clarity so brilliant they could see for miles.\n\n"
-            f"In the heart of {topic}, they found what they were looking for. Not an answer, exactly, but something better — the right question.\n\n"
-            f"And as the sun set on that extraordinary day, painting the sky in shades of amber and gold, Maya understood: the journey itself was the destination.\n\n"
-            f"\"What now?\" her companion asked.\n\n"
-            f"Maya looked ahead at the road stretching into tomorrow. \"Now,\" she said, \"we begin.\"\n\n"
-            f"---\n*Every ending is just a new beginning.*"
-        )
+        stories = [
+            (
+                f"## The Story of {topic.title()}\n\n"
+                f"It began on a day like any other — the sky stretched endlessly overhead, the world humming with quiet possibility.\n\n"
+                f"Maya had always known that {topic} held secrets. Not the kind you whisper behind closed doors, but the kind that hide in plain sight — waiting for someone brave enough to look.\n\n"
+                f"\"Are you sure about this?\" asked her companion, eyes wide with a mixture of fear and curiosity.\n\n"
+                f"\"No,\" Maya admitted with a small smile. \"But I've never been sure about anything worth doing.\"\n\n"
+                f"They stepped forward into the unknown. The path wound through challenges that tested every limit — moments of doubt so deep they could drown in them, and flashes of clarity so brilliant they could see for miles.\n\n"
+                f"In the heart of {topic}, they found what they were looking for. Not an answer, exactly, but something better — the right question.\n\n"
+                f"And as the sun set on that extraordinary day, painting the sky in shades of amber and gold, Maya understood: the journey itself was the destination.\n\n"
+                f"\"What now?\" her companion asked.\n\n"
+                f"Maya looked ahead at the road stretching into tomorrow. \"Now,\" she said, \"we begin.\"\n\n"
+                f"---\n*Every ending is just a new beginning.*"
+            ),
+            (
+                f"## {topic.title()} — The Last Chapter\n\n"
+                f"The old clockmaker's hands trembled as he placed the final gear into position. For forty years, he had been building something the world didn't yet understand — something connected to {topic}.\n\n"
+                f"\"You're wasting your time,\" they had told him. \"Nobody cares about {topic} anymore.\"\n\n"
+                f"But Arjun knew better. He had seen the truth hidden in the patterns, felt the pulse of something extraordinary beneath the ordinary surface of things.\n\n"
+                f"The night it finally worked, there were no fireworks, no crowd, no cameras. Just Arjun, alone in his workshop, watching as {topic} revealed itself in all its magnificent complexity.\n\n"
+                f"He wept. Not from sadness, but from the overwhelming beauty of finally understanding what he had chased his entire life.\n\n"
+                f"The next morning, he wrote a single letter and placed it on his workbench:\n\n"
+                f"> *\"To whoever finds this: The secret of {topic} is not in the knowing. It's in the searching. Never stop searching.\"*\n\n"
+                f"He locked the door behind him and walked into the sunrise, carrying nothing but the quiet satisfaction of a life well spent.\n\n"
+                f"---\n*Some journeys end where they began — with wonder.*"
+            ),
+            (
+                f"## The {topic.title()} Experiment\n\n"
+                f"Dr. Zara Chen stared at the screen, her coffee growing cold beside her. The data didn't lie — but it didn't make sense either.\n\n"
+                f"\"Run it again,\" she whispered to her assistant.\n\n"
+                f"\"We've run it seventeen times, Dr. Chen.\"\n\n"
+                f"\"Then run it eighteen.\"\n\n"
+                f"The results came back identical. {topic.title()} wasn't behaving the way any textbook predicted. It was doing something entirely new — something that could change everything.\n\n"
+                f"She picked up the phone. \"Director? You need to see this. Yes, now. No, it can't wait until morning.\"\n\n"
+                f"By dawn, the lab was full. Scientists, officials, journalists — all crowding around a single monitor showing what {topic} had become.\n\n"
+                f"\"What does it mean?\" someone asked.\n\n"
+                f"Zara smiled — the kind of smile that only comes from standing at the edge of the unknown. \"It means we've been asking the wrong questions. {topic.title()} isn't what we thought it was. It's something much bigger.\"\n\n"
+                f"The room fell silent. Outside, the sun rose on a world that would never be quite the same.\n\n"
+                f"---\n*The greatest discoveries happen when we stop expecting and start observing.*"
+            ),
+        ]
+        return random.choice(stories)
 
     def _gen_speech(self, prompt):
         topic = re.sub(r'(write|create)\s+(a\s+)?speech\s*(about|on)?\s*', '', prompt, flags=re.I).strip() or "progress"

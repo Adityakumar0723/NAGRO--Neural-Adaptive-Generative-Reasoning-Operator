@@ -926,7 +926,9 @@ def find_template(prompt: str, lang: str = "python") -> dict | None:
                 best_match = (keyword, template)
                 lang = other_lang
 
-    if best_match and best_score >= 1:
+    if best_match and best_score >= 2:
+        return {"keyword": best_match[0], "lang": lang, **best_match[1]}
+    if best_match and best_score >= 1 and len(best_match[0].split()) <= 2:
         return {"keyword": best_match[0], "lang": lang, **best_match[1]}
     return None
 
