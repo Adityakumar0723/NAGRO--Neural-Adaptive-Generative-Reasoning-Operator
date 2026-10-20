@@ -448,9 +448,14 @@
         html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function (_, lang, code) {
             const idx = codeBlocks.length;
             const label = lang || 'code';
+            var isPreviewable = /^html?$/i.test(lang);
             codeBlocks.push(
                 '<div class="code-header"><span class="code-lang">' + esc(label) + '</span>' +
-                '<button class="copy-btn" data-idx="' + idx + '">Copy</button></div>' +
+                '<div class="code-actions">' +
+                '<button class="copy-btn" data-idx="' + idx + '">Copy</button>' +
+                '<button class="download-btn" data-lang="' + esc(lang || 'txt') + '">Download</button>' +
+                (isPreviewable ? '<button class="preview-btn">Preview</button>' : '') +
+                '</div></div>' +
                 '<pre><code>' + esc(code.trim()) + '</code></pre>'
             );
             return '\x00CB' + idx + '\x00';
@@ -499,6 +504,60 @@
                     btn.textContent = 'Copied!';
                     setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
                 });
+            });
+        });
+
+        $$('.download-btn', container).forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var pre = this.closest('.code-header')?.nextElementSibling;
+                var code = pre ? (pre.querySelector('code')?.textContent || pre.textContent) : '';
+                var lang = (btn.dataset.lang || 'txt').toLowerCase();
+                var extMap = {
+                    python:'.py', py:'.py', javascript:'.js', js:'.js',
+                    typescript:'.ts', ts:'.ts', html:'.html', htm:'.html',
+                    css:'.css', java:'.java', c:'.c', cpp:'.cpp', 'c++':'.cpp',
+                    csharp:'.cs', cs:'.cs', go:'.go', rust:'.rs', rs:'.rs',
+                    ruby:'.rb', rb:'.rb', php:'.php', sql:'.sql', json:'.json',
+                    xml:'.xml', yaml:'.yaml', yml:'.yaml', bash:'.sh', sh:'.sh',
+                    shell:'.sh', markdown:'.md', md:'.md', swift:'.swift',
+                    kotlin:'.kt', kt:'.kt', r:'.r', dart:'.dart', lua:'.lua',
+                    perl:'.pl', scala:'.scala', txt:'.txt', code:'.txt'
+                };
+                var ext = extMap[lang] || ('.' + lang);
+                var blob = new Blob([code], { type: 'text/plain' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'nagro-code' + ext;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        });
+
+        $$('.preview-btn', container).forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var header = this.closest('.code-header');
+                var pre = header ? header.nextElementSibling : null;
+                if (!pre) return;
+                var existing = pre.nextElementSibling;
+                if (existing && existing.classList.contains('code-preview')) {
+                    existing.remove();
+                    pre.classList.remove('has-preview');
+                    btn.textContent = 'Preview';
+                    return;
+                }
+                var code = pre.querySelector('code')?.textContent || pre.textContent;
+                var wrapper = document.createElement('div');
+                wrapper.className = 'code-preview';
+                var iframe = document.createElement('iframe');
+                iframe.sandbox = 'allow-scripts';
+                iframe.srcdoc = code;
+                wrapper.appendChild(iframe);
+                pre.classList.add('has-preview');
+                pre.insertAdjacentElement('afterend', wrapper);
+                btn.textContent = 'Hide Preview';
             });
         });
     }

@@ -20,6 +20,11 @@ import random
 from collections import Counter
 from typing import Iterator
 from nagro.core.knowledge_data import WORLD_KNOWLEDGE, find_knowledge
+from nagro.core.nlp_engine import (
+    classify_question, extract_intent, QuestionType,
+    text_similarity, format_answer, expand_synonyms,
+    build_comparison, extract_comparison_topics, score_sentences,
+)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -727,7 +732,18 @@ class NAGROBrain:
                             f"I've noted this. You can ask me about **{term}** anytime in this conversation."
                         )
 
-        if len(prompt.split()) > 30 and not any(q in p for q in ["?", "what", "how", "why", "when", "where", "who", "explain", "tell me", "batao", "samjhao"]):
+        action_words = ["?", "what", "how", "why", "when", "where", "who",
+                        "explain", "tell me", "batao", "samjhao",
+                        "write", "create", "build", "make", "generate", "code",
+                        "solve", "list", "give", "show", "find", "implement",
+                        "design", "develop", "program", "script", "function",
+                        "class", "api", "app", "website", "course", "tutorial",
+                        "project", "calculate", "compare", "analyze",
+                        "banao", "likho", "karo", "do", "banawo", "dikhao",
+                        "poem", "story", "essay", "speech", "song", "lyrics",
+                        "summarize", "translate", "convert", "fix", "debug",
+                        "help", "suggest", "recommend", "define"]
+        if len(prompt.split()) > 50 and not any(q in p for q in action_words):
             info = prompt.strip()
             keywords = self._extract_key_phrases(info)
             if keywords:
@@ -994,13 +1010,25 @@ class NAGROBrain:
 
     def _handle_general(self, prompt: str) -> str:
         p = prompt.lower()
+        intent = extract_intent(prompt)
+        q_type = intent["question_type"]
+        topic = intent.get("topic") or self._extract_topic(prompt)
 
-        # 0. Check if this relates to previous conversation context
+        # 0. Comparison questions — handle specially
+        if q_type == QuestionType.COMPARISON:
+            comp = extract_comparison_topics(prompt)
+            if comp:
+                kb_a = self._check_knowledge_base(comp[0]) or find_knowledge(comp[0])
+                kb_b = self._check_knowledge_base(comp[1]) or find_knowledge(comp[1])
+                if kb_a or kb_b:
+                    return build_comparison(comp[0], comp[1], kb_a, kb_b)
+
+        # 1. Check if this relates to previous conversation context
         context_answer = self._check_conversation_context(prompt)
         if context_answer:
             return context_answer
 
-        # 1. Check user-taught knowledge first
+        # 2. Check user-taught knowledge first
         for term, info in self._user_taught.items():
             if term in p:
                 return (
@@ -1010,51 +1038,44 @@ class NAGROBrain:
                     f"Would you like me to go deeper into any specific aspect?"
                 )
 
-        # 2. Try direct Q&A first (quick factual answers)
+        # 3. Try direct Q&A first (quick factual answers)
         direct = self._try_direct_answer(prompt)
         if direct:
             return direct
 
-        is_explain = any(w in p for w in ["explain", "samjhao", "batao", "describe",
-                                           "kya hai", "what is", "what are", "define",
-                                           "how does", "how do", "why is", "why do"])
-
-        # 3. Check NAGRO's built-in knowledge bases (both KNOWLEDGE and WORLD_KNOWLEDGE)
+        # 4. Check NAGRO's built-in knowledge bases (both KNOWLEDGE and WORLD_KNOWLEDGE)
         kb = self._check_knowledge_base(prompt)
         if not kb:
             kb = find_knowledge(prompt)
+        if not kb:
+            kb = self._synonym_knowledge_search(prompt)
 
-        # 4. If KB has the answer → return IMMEDIATELY (no waiting for network)
+        # 5. If KB has the answer → format based on question type
         if kb:
             answer = self._frame_answer(prompt, kb)
             if answer:
                 return answer
-            if is_explain:
-                return self._make_explanation(kb, prompt)
-            return kb
+            return format_answer(kb, q_type, topic)
 
-        # 5. Fuzzy knowledge base match (need >= 2 word overlap)
+        # 6. Fuzzy knowledge base match (need >= 2 word overlap)
         fuzzy = self._fuzzy_knowledge(prompt)
         if fuzzy:
             answer = self._frame_answer(prompt, fuzzy)
             if answer:
                 return answer
-            if is_explain:
-                return self._make_explanation(fuzzy, prompt)
-            return fuzzy
+            return format_answer(fuzzy, q_type, topic)
 
-        # 6. KB doesn't have it → try Wikipedia (free, reliable, 5s timeout)
+        # 7. KB doesn't have it → try Wikipedia (free, reliable, 5s timeout)
         wiki = self._wiki_search(prompt)
         if wiki:
-            topic = self._extract_topic(prompt)
-            return f"## {topic.title()}\n\n{wiki}\n\n---\n*Ask me more about {topic}!*"
+            return format_answer(wiki, q_type, topic)
 
-        # 7. Try DuckDuckGo web search
+        # 8. Try DuckDuckGo web search
         web_results = self._web_search_multi(prompt)
         if web_results:
             return self._compose_answer(prompt, web_results)
 
-        # 8. Smart fallback — NEVER says "can't connect"
+        # 9. Smart fallback — NEVER says "can't connect"
         return self._smart_fallback(prompt)
 
     def _try_direct_answer(self, prompt: str) -> str | None:
@@ -1332,6 +1353,31 @@ class NAGROBrain:
 
         return None
 
+    def _synonym_knowledge_search(self, prompt: str) -> str | None:
+        """Search KB using synonym expansion — finds 'car' when user says 'automobile'."""
+        p_words = set(prompt.lower().split())
+        sig = {w for w in p_words if len(w) > 2}
+        expanded = expand_synonyms(sig)
+
+        for key, (all_keys, text) in KNOWLEDGE.items():
+            for ak in all_keys:
+                ak_words = set(ak.split())
+                if ak_words & expanded:
+                    return text
+
+        try:
+            from nagro.core.knowledge_data import WORLD_KNOWLEDGE
+            for key, content in WORLD_KNOWLEDGE.items():
+                key_words = set(key.lower().split())
+                if len(key_words & expanded) >= 1 and len(key_words) <= 3:
+                    return content
+                if len(key_words & expanded) >= 2:
+                    return content
+        except Exception:
+            pass
+
+        return None
+
     def _fuzzy_knowledge(self, prompt: str) -> str | None:
         p_words = set(prompt.lower().split())
         stop = {"a", "an", "the", "is", "are", "was", "were", "what", "how",
@@ -1599,6 +1645,10 @@ class NAGROBrain:
         if code:
             return code
 
+        smart_code = self._generate_code_smart(prompt, lang)
+        if smart_code:
+            return smart_code
+
         results = self._web_search(prompt + " code example")
         if results:
             return self._compose_answer(prompt, results)
@@ -1611,6 +1661,93 @@ class NAGROBrain:
             "- \"Python course\" — full learning roadmap\n"
             "- \"Build a todo app\" — complete project\n\n"
             "Just tell me what you need!"
+        )
+
+    def _generate_code_smart(self, prompt: str, lang: str) -> str | None:
+        """Smart code generation — combine multiple patterns when no single pattern matches."""
+        p = prompt.lower()
+        topic = re.sub(r'^(write|create|make|build|generate|implement|code|develop)\s+(a\s+)?',
+                       '', prompt, flags=re.I).strip()
+        topic = re.sub(r'\s+(in\s+)?(python|javascript|java|html|css|go|rust|typescript|c\+\+)$',
+                       '', topic, flags=re.I).strip()
+
+        if not topic or len(topic) < 3:
+            return None
+
+        components = {
+            "input": ("user_input = input('Enter value: ')", "Get user input"),
+            "list": ("items = []\nitems.append(value)", "Store items in list"),
+            "dict": ("data = {}", "Store key-value pairs"),
+            "loop": ("for item in items:\n    print(item)", "Iterate over items"),
+            "file read": ("with open('data.txt', 'r') as f:\n    content = f.read()", "Read file"),
+            "file write": ("with open('output.txt', 'w') as f:\n    f.write(result)", "Write file"),
+            "function": ("def process(data):\n    # Your logic here\n    return result", "Define function"),
+            "class": ("class MyClass:\n    def __init__(self):\n        self.data = []\n\n    def add(self, item):\n        self.data.append(item)", "Define class"),
+            "print": ("print(f'Result: {result}')", "Display output"),
+            "error": ("try:\n    result = risky_operation()\nexcept Exception as e:\n    print(f'Error: {e}')", "Handle errors"),
+            "sort": ("sorted_data = sorted(items, key=lambda x: x)", "Sort data"),
+            "filter": ("filtered = [x for x in items if condition(x)]", "Filter data"),
+            "count": ("from collections import Counter\ncounts = Counter(items)", "Count occurrences"),
+            "math": ("import math\nresult = math.sqrt(value)", "Math operations"),
+            "random": ("import random\nchoice = random.choice(items)", "Random selection"),
+            "time": ("import time\nstart = time.time()\n# ... code ...\nprint(f'Took {time.time()-start:.2f}s')", "Measure time"),
+            "json": ("import json\ndata = json.loads(json_string)\njson_string = json.dumps(data, indent=2)", "JSON handling"),
+            "regex": ("import re\nmatches = re.findall(r'pattern', text)", "Regex pattern matching"),
+            "http": ("import urllib.request\nwith urllib.request.urlopen(url) as resp:\n    data = resp.read().decode()", "HTTP request"),
+        }
+
+        matched = []
+        for key, (code, desc) in components.items():
+            if key in p:
+                matched.append((key, code, desc))
+
+        if not matched:
+            keywords_map = {
+                "read": "file read", "write": "file write", "save": "file write",
+                "load": "file read", "open": "file read",
+                "sort": "sort", "order": "sort", "arrange": "sort",
+                "filter": "filter", "search": "filter", "find": "filter",
+                "count": "count", "frequency": "count", "how many": "count",
+                "download": "http", "fetch": "http", "request": "http", "url": "http",
+                "calculate": "math", "compute": "math",
+                "random": "random", "pick": "random", "choose": "random",
+                "timer": "time", "benchmark": "time", "measure": "time",
+                "parse": "json", "convert": "json",
+                "pattern": "regex", "match": "regex", "extract": "regex",
+                "class": "class", "object": "class", "oop": "class",
+                "function": "function", "method": "function",
+                "error": "error", "exception": "error", "try": "error",
+                "input": "input", "ask": "input", "prompt": "input",
+                "display": "print", "output": "print", "show": "print",
+            }
+            for kw, comp_key in keywords_map.items():
+                if kw in p and comp_key in components:
+                    code, desc = components[comp_key]
+                    matched.append((comp_key, code, desc))
+
+        if not matched:
+            return None
+
+        seen = set()
+        unique = []
+        for key, code, desc in matched:
+            if key not in seen:
+                seen.add(key)
+                unique.append((code, desc))
+
+        code_parts = "\n\n".join(code for code, _ in unique[:6])
+        desc_parts = ", ".join(desc for _, desc in unique[:6])
+
+        return (
+            f"## {topic.title()}\n\n"
+            f"Here's a Python program for **{topic}**:\n\n"
+            f"```python\n"
+            f"# {topic.title()}\n"
+            f"# Components: {desc_parts}\n\n"
+            f"{code_parts}\n"
+            f"```\n\n"
+            f"**What this does:** {desc_parts}.\n\n"
+            f"*Want me to expand any part or add more features? Just ask!*"
         )
 
     def _generate_code(self, prompt: str, lang: str) -> str | None:
