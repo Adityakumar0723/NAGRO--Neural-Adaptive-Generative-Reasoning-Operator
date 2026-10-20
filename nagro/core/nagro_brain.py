@@ -855,52 +855,200 @@ class NAGROBrain:
                     f"Would you like me to go deeper into any specific aspect?"
                 )
 
+        # 2. Try direct Q&A first (quick factual answers)
+        direct = self._try_direct_answer(prompt)
+        if direct:
+            return direct
+
         is_explain = any(w in p for w in ["explain", "samjhao", "batao", "describe",
                                            "kya hai", "what is", "what are", "define",
                                            "how does", "how do", "why is", "why do"])
 
-        # 2. Check NAGRO's built-in knowledge bases (both KNOWLEDGE and WORLD_KNOWLEDGE)
+        # 3. Check NAGRO's built-in knowledge bases (both KNOWLEDGE and WORLD_KNOWLEDGE)
         kb = self._check_knowledge_base(prompt)
         if not kb:
             kb = find_knowledge(prompt)
 
-        # 3. If KB has the answer → return IMMEDIATELY (no waiting for network)
+        # 4. If KB has the answer → return IMMEDIATELY (no waiting for network)
         if kb:
+            answer = self._frame_answer(prompt, kb)
+            if answer:
+                return answer
             if is_explain:
                 return self._make_explanation(kb, prompt)
             return kb
 
-        # 4. Fuzzy knowledge base match (still fast, no network)
+        # 5. Fuzzy knowledge base match (need >= 2 word overlap)
         fuzzy = self._fuzzy_knowledge(prompt)
         if fuzzy:
+            answer = self._frame_answer(prompt, fuzzy)
+            if answer:
+                return answer
             if is_explain:
                 return self._make_explanation(fuzzy, prompt)
             return fuzzy
 
-        # 5. KB doesn't have it → try Wikipedia (free, reliable, 8s timeout)
+        # 6. KB doesn't have it → try Wikipedia (free, reliable, 5s timeout)
         wiki = self._wiki_search(prompt)
         if wiki:
             topic = self._extract_topic(prompt)
             return f"## {topic.title()}\n\n{wiki}\n\n---\n*Ask me more about {topic}!*"
 
-        # 6. Try DuckDuckGo web search
+        # 7. Try DuckDuckGo web search
         web_results = self._web_search_multi(prompt)
         if web_results:
             return self._compose_answer(prompt, web_results)
 
-        # 7. Try open source models (Mistral, Qwen, Phi)
+        # 8. Try open source models (Mistral, Qwen, Phi)
         model_answer = self._try_open_source_model(prompt)
         if model_answer:
             return model_answer
 
-        # 8. Smart fallback — NEVER says "can't connect"
+        # 9. Smart fallback — NEVER says "can't connect"
         return self._smart_fallback(prompt)
+
+    def _try_direct_answer(self, prompt: str) -> str | None:
+        """Answer common factual questions directly without dumping full articles."""
+        p = prompt.lower().strip().rstrip("?.")
+
+        quick_answers = {
+            "what is the capital of india": "The capital of India is **New Delhi**.",
+            "capital of india": "The capital of India is **New Delhi**.",
+            "india ki rajdhani": "India ki rajdhani **New Delhi** hai.",
+            "what is the capital of usa": "The capital of the United States is **Washington, D.C.**",
+            "what is the capital of america": "The capital of the United States is **Washington, D.C.**",
+            "capital of usa": "The capital of the United States is **Washington, D.C.**",
+            "capital of america": "The capital of the United States is **Washington, D.C.**",
+            "what is the capital of china": "The capital of China is **Beijing**.",
+            "capital of china": "The capital of China is **Beijing**.",
+            "what is the capital of japan": "The capital of Japan is **Tokyo**.",
+            "capital of japan": "The capital of Japan is **Tokyo**.",
+            "what is the capital of russia": "The capital of Russia is **Moscow**.",
+            "capital of russia": "The capital of Russia is **Moscow**.",
+            "what is the capital of uk": "The capital of the United Kingdom is **London**.",
+            "what is the capital of england": "The capital of England is **London**.",
+            "capital of uk": "The capital of the United Kingdom is **London**.",
+            "what is the capital of france": "The capital of France is **Paris**.",
+            "capital of france": "The capital of France is **Paris**.",
+            "what is the capital of germany": "The capital of Germany is **Berlin**.",
+            "capital of germany": "The capital of Germany is **Berlin**.",
+            "what is the capital of australia": "The capital of Australia is **Canberra**.",
+            "capital of australia": "The capital of Australia is **Canberra**.",
+            "what is the capital of canada": "The capital of Canada is **Ottawa**.",
+            "capital of canada": "The capital of Canada is **Ottawa**.",
+            "what is the capital of brazil": "The capital of Brazil is **Brasília**.",
+            "capital of brazil": "The capital of Brazil is **Brasília**.",
+            "what is the capital of italy": "The capital of Italy is **Rome**.",
+            "capital of italy": "The capital of Italy is **Rome**.",
+            "what is the capital of spain": "The capital of Spain is **Madrid**.",
+            "capital of spain": "The capital of Spain is **Madrid**.",
+            "what is the capital of south korea": "The capital of South Korea is **Seoul**.",
+            "capital of south korea": "The capital of South Korea is **Seoul**.",
+            "what is the capital of pakistan": "The capital of Pakistan is **Islamabad**.",
+            "capital of pakistan": "The capital of Pakistan is **Islamabad**.",
+            "who is the pm of india": "The Prime Minister of India is **Narendra Modi** (since May 2014).",
+            "pm of india": "The Prime Minister of India is **Narendra Modi** (since May 2014).",
+            "prime minister of india": "The Prime Minister of India is **Narendra Modi** (since May 2014).",
+            "president of india": "The President of India is **Droupadi Murmu** (since July 2022).",
+            "who is the president of usa": "The President of the United States is **Joe Biden** (since January 2021).",
+            "president of usa": "The President of the United States is **Joe Biden** (since January 2021).",
+            "president of america": "The President of the United States is **Joe Biden** (since January 2021).",
+            "president of russia": "The President of Russia is **Vladimir Putin**.",
+            "president of china": "The President of China is **Xi Jinping**.",
+            "speed of light": "The speed of light in vacuum is **299,792,458 meters per second** (approximately 3 × 10⁸ m/s or about 186,282 miles per second).",
+            "what is the speed of light": "The speed of light in vacuum is **299,792,458 meters per second** (approximately 3 × 10⁸ m/s or about 186,282 miles per second).",
+            "speed of sound": "The speed of sound in air at 20°C is approximately **343 meters per second** (about 1,235 km/h or 767 mph).",
+            "what is the speed of sound": "The speed of sound in air at 20°C is approximately **343 meters per second** (about 1,235 km/h or 767 mph).",
+            "how many planets": "There are **8 planets** in our solar system: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune.",
+            "how many planets in solar system": "There are **8 planets** in our solar system: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune.",
+            "largest planet": "The largest planet in our solar system is **Jupiter**, with a diameter of about 139,820 km — more than 11 times wider than Earth.",
+            "smallest planet": "The smallest planet in our solar system is **Mercury**, with a diameter of about 4,879 km.",
+            "closest planet to sun": "The closest planet to the Sun is **Mercury**, orbiting at an average distance of about 57.9 million km.",
+            "largest country": "The largest country by area is **Russia** (17.1 million km²). By population, it's **India** (~1.44 billion).",
+            "largest country in the world": "The largest country by area is **Russia** (17.1 million km²). By population, it's **India** (~1.44 billion).",
+            "smallest country": "The smallest country in the world is **Vatican City** (0.44 km²), followed by Monaco (2.02 km²).",
+            "tallest mountain": "The tallest mountain in the world is **Mount Everest** at **8,849 meters** (29,032 feet), located in the Himalayas on the Nepal-China border.",
+            "highest mountain": "The highest mountain in the world is **Mount Everest** at **8,849 meters** (29,032 feet), located in the Himalayas on the Nepal-China border.",
+            "longest river": "The longest river in the world is the **Nile** at approximately **6,650 km** (4,130 miles), flowing through northeastern Africa. The Amazon is the largest by water volume.",
+            "deepest ocean": "The deepest ocean is the **Pacific Ocean**. Its deepest point is the **Mariana Trench** at approximately **10,994 meters** (36,070 feet) deep.",
+            "biggest ocean": "The biggest ocean is the **Pacific Ocean**, covering about **165.25 million km²** — larger than all the land area on Earth combined.",
+            "what is water": "Water (H₂O) is a chemical compound made of **two hydrogen atoms and one oxygen atom**. It's essential for all known forms of life, covers about 71% of Earth's surface, and exists in three states: solid (ice), liquid (water), and gas (steam/vapor).",
+            "boiling point of water": "The boiling point of water is **100°C (212°F)** at standard atmospheric pressure (1 atm).",
+            "freezing point of water": "The freezing point of water is **0°C (32°F)** at standard atmospheric pressure.",
+            "what is gravity": "Gravity is a fundamental force of nature that attracts objects with mass toward each other. On Earth's surface, the acceleration due to gravity is approximately **9.8 m/s²** (often rounded to 10 m/s²). It keeps planets in orbit and holds us on the ground.",
+            "what is pi": "Pi (π) is a mathematical constant representing the ratio of a circle's circumference to its diameter. Its value is approximately **3.14159265358979...** It's an irrational number — its decimal representation never ends or repeats.",
+            "value of pi": "The value of Pi (π) is approximately **3.14159265358979...**",
+            "what is zero": "Zero (0) is a number that represents **nothing or no quantity**. It's the integer between -1 and 1. It was first used as a number by ancient Indian mathematicians — **Brahmagupta** (628 AD) was among the first to define rules for arithmetic involving zero.",
+            "who invented zero": "Zero as a number was developed by ancient **Indian mathematicians**. **Brahmagupta** (628 AD) was the first to define arithmetic rules for zero. **Aryabhata** (5th century) used it as a placeholder. The concept spread to the Arab world and then to Europe.",
+            "what is the sun": "The Sun is a **star** — a massive ball of hot plasma at the center of our solar system. It's about 4.6 billion years old, has a surface temperature of ~5,500°C, and is approximately 150 million km from Earth. It provides the light and heat essential for life on Earth.",
+            "what is the moon": "The Moon is Earth's only natural satellite, orbiting at an average distance of ~384,400 km. It has no atmosphere, no liquid water on its surface, and its gravity is about 1/6th of Earth's. Neil Armstrong was the first person to walk on the Moon (July 20, 1969).",
+            "who made nagro": "**NAGRO 4.1** (Neural Adaptive Generative Reasoning Operator) was created by **Aditya Kumar**. It's a self-built AI engine with built-in knowledge, open-source model integration, and advanced reasoning capabilities.",
+            "who created nagro": "**NAGRO 4.1** was created by **Aditya Kumar**. It's a Neural Adaptive Generative Reasoning Operator — a self-built AI system.",
+            "what is nagro": "**NAGRO 4.1** (Neural Adaptive Generative Reasoning Operator) is a self-built AI assistant created by **Aditya Kumar**. It uses its own reasoning engine, a built-in knowledge base of 150+ topics, Wikipedia integration, and open-source models (Mistral, Qwen, Phi) — all without any paid APIs.",
+            "1+1": "1 + 1 = **2**",
+            "2+2": "2 + 2 = **4**",
+            "what is 1+1": "1 + 1 = **2**",
+            "what is 2+2": "2 + 2 = **4**",
+            "hello": None,
+            "hi": None,
+        }
+
+        if p in quick_answers:
+            return quick_answers[p]
+
+        for q, a in quick_answers.items():
+            if a and p.endswith(q):
+                return a
+
+        return None
+
+    def _frame_answer(self, prompt: str, kb_content: str) -> str | None:
+        """Frame KB content as a proper answer to the specific question asked."""
+        p = prompt.lower().strip()
+        topic = self._extract_topic(prompt)
+
+        is_specific = any(pat in p for pat in [
+            "what is the", "what are the", "who is the", "who was the",
+            "when was", "when did", "where is", "where was",
+            "how many", "how much", "how old", "how long", "how far",
+            "which is", "which was", "what year", "what country",
+        ])
+
+        if not is_specific:
+            return None
+
+        lines = kb_content.split('\n')
+        relevant = []
+        topic_words = set(topic.lower().split())
+        prompt_words = set(p.split()) - {"what", "is", "the", "a", "an", "are",
+                                          "who", "was", "when", "where", "how",
+                                          "which", "did", "does", "do", "many",
+                                          "much", "old", "long", "far", "of",
+                                          "in", "on", "at", "to", "for", "by"}
+
+        for line in lines:
+            l_lower = line.lower()
+            match_count = sum(1 for w in prompt_words if w in l_lower and len(w) > 2)
+            if match_count >= 2 or any(w in l_lower for w in topic_words if len(w) > 3):
+                clean = line.strip().strip('-').strip('*').strip()
+                if clean and len(clean) > 10:
+                    relevant.append(clean)
+
+        if relevant:
+            header = f"## {topic.title()}\n\n"
+            answer = header + "\n\n".join(relevant[:8])
+            if len(relevant) > 8:
+                answer += f"\n\n*Ask me for more details about {topic}!*"
+            return answer
+
+        return None
 
     def _wiki_search(self, prompt: str) -> str | None:
         """Search Wikipedia for information. Free, no API key."""
         try:
             from nagro.tools.wikipedia_search import wiki_quick
-            return wiki_quick(prompt)
+            topic = self._extract_topic(prompt)
+            return wiki_quick(topic)
         except Exception:
             return None
 
@@ -1028,11 +1176,13 @@ class NAGROBrain:
         p = prompt.lower()
 
         for key, (all_keys, text) in KNOWLEDGE.items():
-            if key in p:
-                return text
             for ak in all_keys:
-                if ak in p:
-                    return text
+                if len(ak) <= 3:
+                    if re.search(r'\b' + re.escape(ak) + r'\b', p):
+                        return text
+                else:
+                    if ak in p:
+                        return text
 
         return None
 
@@ -1044,21 +1194,33 @@ class NAGROBrain:
                 "to", "of", "in", "on", "at", "by", "with", "from", "me",
                 "my", "i", "you", "your", "tell", "explain", "describe",
                 "please", "help", "want", "need", "give", "latest", "news",
-                "analyze", "research", "discuss", "detailed", "comprehensive"}
+                "analyze", "research", "discuss", "detailed", "comprehensive",
+                "know", "think", "say", "said", "like", "just", "also",
+                "very", "really", "much", "many", "some", "any", "all",
+                "between", "through", "into", "has", "have", "had", "been",
+                "being", "their", "they", "them", "his", "her", "its",
+                "our", "more", "most", "other", "new", "old", "good", "bad",
+                "make", "made", "get", "got", "take", "took", "come", "came"}
         sig_words = {w for w in p_words if w not in stop and len(w) > 2}
+
+        if not sig_words:
+            return None
 
         best_key = None
         best_score = 0
+        best_ratio = 0.0
         for key, (all_keys, text) in KNOWLEDGE.items():
             all_kw = set()
             for ak in all_keys:
                 all_kw.update(ak.split())
             overlap = len(sig_words & all_kw)
-            if overlap > best_score:
+            ratio = overlap / max(len(all_kw), 1)
+            if overlap > best_score or (overlap == best_score and ratio > best_ratio):
                 best_score = overlap
+                best_ratio = ratio
                 best_key = key
 
-        if best_key and best_score >= 1:
+        if best_key and best_score >= 2:
             return KNOWLEDGE[best_key][1]
         return None
 
@@ -1167,52 +1329,55 @@ class NAGROBrain:
         except Exception:
             pass
 
+        # Try to give a thoughtful response based on the question type
         response = f"## {topic.title()}\n\n"
 
         if any(w in p for w in ["how to", "tutorial", "guide", "steps", "learn", "kaise"]):
             response += (
-                f"**Getting Started with {topic.title()}:**\n\n"
-                f"1. **Learn the fundamentals** — Start with core concepts and terminology\n"
-                f"2. **Hands-on practice** — Apply what you learn through projects and exercises\n"
-                f"3. **Read documentation** — Official docs are always the best reference\n"
-                f"4. **Join communities** — Stack Overflow, Reddit, Discord groups for support\n"
-                f"5. **Build real projects** — Nothing beats practical experience\n\n"
-                f"I can help with specific questions, code examples, or explanations. Just ask!\n"
+                f"Here's a practical approach to **{topic}**:\n\n"
+                f"1. **Start with basics** — understand the core concepts first\n"
+                f"2. **Practice hands-on** — theory alone isn't enough, build something\n"
+                f"3. **Use official documentation** — always the most reliable source\n"
+                f"4. **Join communities** — Stack Overflow, Reddit, Discord for help\n"
+                f"5. **Build projects** — apply what you learn in real scenarios\n\n"
+                f"Would you like me to go deeper into any specific aspect of {topic}?"
             )
         elif any(w in p for w in ["compare", "vs", "versus", "difference", "better"]):
+            parts = re.split(r'\b(?:vs|versus|or|compared to|difference between|and)\b', p)
+            if len(parts) >= 2:
+                a_name = parts[0].strip().strip("what is the between").strip()
+                b_name = parts[-1].strip().rstrip("?.")
+                response += (
+                    f"**{a_name.title()} vs {b_name.title()}:**\n\n"
+                    f"Both have their strengths. The best choice depends on your specific needs:\n\n"
+                    f"| Aspect | {a_name.title()} | {b_name.title()} |\n"
+                    f"|--------|{'---' * 5}|{'---' * 5}|\n"
+                    f"| **Use Case** | Depends on requirements | Depends on requirements |\n"
+                    f"| **Learning** | Check official docs | Check official docs |\n\n"
+                    f"Ask me specifically about **{a_name}** or **{b_name}** for detailed information!"
+                )
+            else:
+                response += f"Could you specify what you'd like to compare? For example: \"Compare Python vs JavaScript\""
+        elif any(w in p for w in ["who is", "who was", "kaun hai", "kaun tha"]):
             response += (
-                f"Here's how to think about this comparison:\n\n"
-                f"| Aspect | Consideration |\n"
-                f"|--------|---------------|\n"
-                f"| **Purpose** | What problem does each solve? |\n"
-                f"| **Performance** | Speed, efficiency, scalability |\n"
-                f"| **Ecosystem** | Community size, tools, libraries |\n"
-                f"| **Learning Curve** | Ease of getting started |\n"
-                f"| **Use Cases** | Where each one excels |\n\n"
-                f"Ask me to compare specific technologies and I'll give a detailed breakdown!\n"
+                f"I don't have specific information about **{topic}** in my knowledge base right now.\n\n"
+                f"I do know about many notable figures — try asking about specific people like Elon Musk, "
+                f"Sundar Pichai, Albert Einstein, Isaac Newton, and more."
             )
-        elif any(w in p for w in ["who is", "who was", "person", "biography", "born"]):
+        elif any(w in p for w in ["when", "what year", "what date", "kab"]):
             response += (
-                f"I have knowledge about notable figures in technology, science, business, and history. "
-                f"I can tell you about people like Elon Musk, Sundar Pichai, Satya Nadella, Albert Einstein, "
-                f"Isaac Newton, Jeff Bezos, Mark Zuckerberg, and many more.\n\n"
-                f"Ask me about a specific person for detailed information!\n"
+                f"I don't have the specific date/time information for **{topic}** right now.\n\n"
+                f"Try asking me about well-known historical events, or I can look it up if you ask more specifically."
             )
         else:
             response += (
-                f"I have built-in knowledge on **150+ topics** covering:\n\n"
-                f"- **AI & Tech:** OpenAI, Anthropic, Google, DeepSeek, LLMs, ML, Deep Learning\n"
-                f"- **Programming:** Python, JavaScript, TypeScript, Java, C++, Rust, Go\n"
-                f"- **Web Dev:** React, Next.js, Node.js, APIs, Databases, Docker, Cloud\n"
-                f"- **Science:** Physics, Chemistry, Biology, Math, Astronomy\n"
-                f"- **World:** India, USA, China, Japan, History, Economics, Sports\n"
-                f"- **People:** Elon Musk, Sundar Pichai, Satya Nadella, Einstein, Newton\n\n"
-                f"I can also **write code**, **solve math**, **create stories/poems**, and **research topics**.\n\n"
-                f"Try asking something specific like:\n"
-                f"- \"What is quantum computing?\"\n"
-                f"- \"Explain blockchain\"\n"
-                f"- \"Write a Python binary search\"\n"
-                f"- \"Tell me about ISRO\"\n"
+                f"I don't have detailed information about **{topic}** in my current knowledge base.\n\n"
+                f"Here's what I can help with:\n"
+                f"- **AI & Tech:** OpenAI, Anthropic, Google, DeepSeek, LLMs, ML\n"
+                f"- **Programming:** Python, JavaScript, React, APIs, Databases\n"
+                f"- **Science:** Physics, Chemistry, Biology, Space\n"
+                f"- **World:** Countries, History, Economics, Sports, People\n\n"
+                f"Try rephrasing your question or asking about a related topic!"
             )
 
         return response.strip()

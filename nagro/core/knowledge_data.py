@@ -1477,6 +1477,159 @@ _add(["world religions", "religion", "hinduism", "islam", "christianity", "buddh
 
 
 # ═══════════════════════════════════════════════════════
+#  GENERAL WORLD FACTS
+# ═══════════════════════════════════════════════════════
+
+_add(["solar system", "planets", "sun", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"],
+"The Solar System consists of the Sun and everything gravitationally bound to it.\n\n"
+"**The 8 Planets (in order from Sun):**\n"
+"1. **Mercury** — Smallest planet, closest to Sun, no atmosphere, extreme temperatures\n"
+"2. **Venus** — Hottest planet (462°C), thick CO₂ atmosphere, similar size to Earth\n"
+"3. **Earth** — Only known planet with life, 71% water, 1 moon\n"
+"4. **Mars** — Red Planet, thin atmosphere, Olympus Mons (largest volcano), 2 moons\n"
+"5. **Jupiter** — Largest planet, Great Red Spot, 95+ moons (Ganymede largest moon in solar system)\n"
+"6. **Saturn** — Famous rings (ice and rock), 146+ moons (Titan has atmosphere)\n"
+"7. **Uranus** — Ice giant, tilted 98° on its side, 27 moons\n"
+"8. **Neptune** — Farthest planet, strongest winds (2,100 km/h), 16 moons\n\n"
+"**Other:** Dwarf planets (Pluto, Ceres, Eris), Asteroid Belt, Kuiper Belt, Oort Cloud.\n\n"
+"**The Sun:** A G-type main-sequence star, age ~4.6 billion years, surface temp ~5,500°C, will become a red giant in ~5 billion years."
+)
+
+_add(["earth", "planet earth", "world"],
+"Earth is the third planet from the Sun and the only known planet to harbor life.\n\n"
+"**Key Facts:**\n"
+"- **Age:** ~4.54 billion years\n"
+"- **Diameter:** 12,742 km\n"
+"- **Surface:** 71% water, 29% land\n"
+"- **Atmosphere:** 78% nitrogen, 21% oxygen, 1% other\n"
+"- **Population:** ~8.1 billion humans\n"
+"- **Moon:** 1 natural satellite\n"
+"- **Rotation:** 24 hours (1 day), Orbit: 365.25 days (1 year)\n"
+"- **Distance from Sun:** ~150 million km (1 AU)\n\n"
+"**Structure:** Inner core (solid iron), outer core (liquid iron), mantle, crust.\n\n"
+"**Continents:** Asia, Africa, North America, South America, Antarctica, Europe, Australia/Oceania."
+)
+
+_add(["mathematics", "math", "maths"],
+"Mathematics is the study of numbers, quantities, shapes, and patterns.\n\n"
+"**Major Branches:**\n"
+"- **Arithmetic:** Numbers, operations (+, −, ×, ÷)\n"
+"- **Algebra:** Variables, equations, polynomials\n"
+"- **Geometry:** Shapes, angles, areas, volumes\n"
+"- **Trigonometry:** Sin, cos, tan, triangles\n"
+"- **Calculus:** Derivatives, integrals, limits\n"
+"- **Statistics:** Data analysis, probability, distributions\n"
+"- **Linear Algebra:** Matrices, vectors, transformations\n"
+"- **Number Theory:** Prime numbers, divisibility, modular arithmetic\n\n"
+"**Constants:** π ≈ 3.14159, e ≈ 2.71828, φ (golden ratio) ≈ 1.61803\n\n"
+"**Famous Problems:** Riemann Hypothesis, P vs NP, Goldbach's Conjecture."
+)
+
+_add(["physics", "newton", "einstein", "relativity", "quantum physics", "quantum mechanics"],
+"Physics is the study of matter, energy, and the fundamental forces of nature.\n\n"
+"**Major Branches:**\n"
+"- **Classical Mechanics:** Newton's laws, motion, gravity, F=ma\n"
+"- **Thermodynamics:** Heat, energy, entropy\n"
+"- **Electromagnetism:** Electric/magnetic fields, Maxwell's equations, light\n"
+"- **Quantum Mechanics:** Subatomic particles, wave-particle duality, uncertainty principle\n"
+"- **Relativity:** Einstein's Special (E=mc²) and General (gravity = spacetime curvature)\n"
+"- **Nuclear Physics:** Radioactivity, fission, fusion\n\n"
+"**Key Constants:**\n"
+"- Speed of light: c = 299,792,458 m/s\n"
+"- Gravitational constant: G = 6.674 × 10⁻¹¹\n"
+"- Planck's constant: h = 6.626 × 10⁻³⁴ J·s\n\n"
+"**Key Figures:** Isaac Newton, Albert Einstein, Niels Bohr, Richard Feynman, Stephen Hawking, Marie Curie."
+)
+
+_add(["chemistry", "elements", "periodic table"],
+"Chemistry is the study of matter, its properties, composition, and reactions.\n\n"
+"**Branches:**\n"
+"- **Organic:** Carbon compounds (life, polymers, drugs)\n"
+"- **Inorganic:** Metals, minerals, non-carbon compounds\n"
+"- **Physical:** Energy in reactions, thermodynamics\n"
+"- **Analytical:** Identifying composition\n"
+"- **Biochemistry:** Chemistry of living organisms\n\n"
+"**Key Concepts:**\n"
+"- **Atoms:** Protons, neutrons, electrons\n"
+"- **Periodic Table:** 118 elements organized by atomic number\n"
+"- **Chemical Bonds:** Ionic, covalent, metallic, hydrogen\n"
+"- **Reactions:** Synthesis, decomposition, combustion, redox\n"
+"- **pH Scale:** 0-14 (acid < 7 < base)\n\n"
+"**Common Elements:** Hydrogen (H), Oxygen (O), Carbon (C), Nitrogen (N), Iron (Fe), Gold (Au), Silver (Ag)."
+)
+
+_add(["biology", "cell", "dna", "evolution", "genetics"],
+"Biology is the study of living organisms and life processes.\n\n"
+"**Key Branches:**\n"
+"- **Cell Biology:** Cells are the basic unit of life. Prokaryotic (bacteria) vs Eukaryotic (plants, animals)\n"
+"- **Genetics:** DNA, genes, chromosomes, heredity. DNA = deoxyribonucleic acid (double helix)\n"
+"- **Evolution:** Natural selection (Darwin), adaptation, speciation\n"
+"- **Ecology:** Ecosystems, food chains, biodiversity\n"
+"- **Microbiology:** Bacteria, viruses, fungi\n"
+"- **Anatomy:** Human body systems\n\n"
+"**Human Body Systems:**\n"
+"- Circulatory (heart, blood), Respiratory (lungs), Nervous (brain, nerves)\n"
+"- Digestive, Skeletal, Muscular, Immune, Endocrine, Reproductive\n\n"
+"**Key Facts:** Human body has ~37 trillion cells, DNA has ~3 billion base pairs, ~8.7 million species on Earth."
+)
+
+_add(["history", "ancient history", "modern history", "world history"],
+"History is the study of past events, particularly human civilization.\n\n"
+"**Major Periods:**\n"
+"- **Ancient (~3000 BCE - 500 CE):** Mesopotamia, Egypt, Greece, Rome, Indus Valley, China\n"
+"- **Medieval (500-1500):** Feudalism, Crusades, Mongol Empire, Black Death\n"
+"- **Renaissance (1400-1600):** Art, science revival in Europe\n"
+"- **Age of Exploration (1400-1600):** Columbus, Vasco da Gama, Magellan\n"
+"- **Industrial Revolution (1760-1840):** Steam engine, factories, urbanization\n"
+"- **Modern (1900+):** World Wars, Cold War, Space Race, Digital Revolution\n\n"
+"**Key Events:**\n"
+"- Printing Press (1440), American Independence (1776), French Revolution (1789)\n"
+"- WW1 (1914-18), WW2 (1939-45), Moon Landing (1969), Internet (1990s)\n\n"
+"**Ancient Civilizations:** Sumerian, Egyptian, Indus Valley, Chinese, Greek, Roman, Mayan, Aztec, Inca."
+)
+
+_add(["geography", "continents", "countries"],
+"Geography is the study of Earth's lands, features, and inhabitants.\n\n"
+"**7 Continents (by size):** Asia, Africa, North America, South America, Antarctica, Europe, Australia/Oceania\n\n"
+"**5 Oceans (by size):** Pacific, Atlantic, Indian, Southern, Arctic\n\n"
+"**Key Records:**\n"
+"- Tallest Mountain: Mount Everest (8,849 m)\n"
+"- Longest River: Nile (6,650 km)\n"
+"- Largest Desert: Sahara (9.2 million km²)\n"
+"- Deepest Point: Mariana Trench (10,994 m)\n"
+"- Largest Lake: Caspian Sea (371,000 km²)\n"
+"- Highest Waterfall: Angel Falls (979 m)\n\n"
+"**Most Populous Countries:** India, China, USA, Indonesia, Pakistan, Brazil, Nigeria, Bangladesh."
+)
+
+_add(["economics", "economy", "gdp", "inflation", "finance"],
+"Economics studies how societies allocate scarce resources.\n\n"
+"**Key Concepts:**\n"
+"- **GDP:** Gross Domestic Product — total value of goods/services produced\n"
+"- **Inflation:** Rising prices over time, measured by CPI\n"
+"- **Supply & Demand:** Price determined by market forces\n"
+"- **Fiscal Policy:** Government spending and taxation\n"
+"- **Monetary Policy:** Central bank controls money supply, interest rates\n\n"
+"**Economic Systems:** Capitalism (free market), Socialism (state control), Mixed Economy\n\n"
+"**Largest Economies (GDP):** USA, China, Germany, Japan, India\n\n"
+"**Key Terms:** Bull/Bear market, recession, depression, trade deficit, exchange rate, stock market, bonds, mutual funds."
+)
+
+_add(["internet", "www", "world wide web", "website"],
+"The Internet is a global network of interconnected computers.\n\n"
+"**History:**\n"
+"- 1969: ARPANET (first network, US Department of Defense)\n"
+"- 1989: Tim Berners-Lee invented the World Wide Web\n"
+"- 1991: First website goes live\n"
+"- 1990s: Browsers (Netscape, IE), search engines, email\n"
+"- 2000s: Social media (Facebook, YouTube, Twitter), smartphones\n"
+"- 2010s: Cloud computing, streaming, AI\n"
+"- 2020s: AI chatbots, 5G, Web3, metaverse\n\n"
+"**How It Works:** Devices → ISPs → Routers → DNS → Servers → Content delivery\n\n"
+"**Key Stats:** ~5.4 billion internet users worldwide (~67% of global population)."
+)
+
+# ═══════════════════════════════════════════════════════
 #  SEARCH FUNCTION
 # ═══════════════════════════════════════════════════════
 
@@ -1484,11 +1637,13 @@ def find_knowledge(query: str) -> str | None:
     q = query.lower().strip()
 
     for key, entry in WORLD_KNOWLEDGE.items():
-        if key in q:
-            return entry["content"]
         for k in entry["keys"]:
-            if k in q:
-                return entry["content"]
+            if len(k) <= 3:
+                if re.search(r'\b' + re.escape(k) + r'\b', q):
+                    return entry["content"]
+            else:
+                if k in q:
+                    return entry["content"]
 
     stop = {"a", "an", "the", "is", "are", "was", "were", "what", "how",
             "why", "when", "where", "who", "which", "do", "does", "did",
@@ -1497,8 +1652,17 @@ def find_knowledge(query: str) -> str | None:
             "my", "i", "you", "your", "tell", "explain", "describe",
             "please", "help", "want", "need", "give", "latest", "news",
             "analyze", "research", "discuss", "detailed", "comprehensive",
-            "batao", "samjhao", "kya", "hai", "kaise", "kyun"}
+            "batao", "samjhao", "kya", "hai", "kaise", "kyun",
+            "know", "think", "say", "said", "like", "just", "also",
+            "very", "really", "much", "many", "some", "any", "all",
+            "between", "through", "into", "has", "have", "had", "been",
+            "being", "their", "they", "them", "his", "her", "its",
+            "our", "more", "most", "other", "new", "old", "good", "bad",
+            "make", "made", "get", "got", "take", "took", "come", "came"}
     q_words = {w for w in q.split() if w not in stop and len(w) > 2}
+
+    if not q_words:
+        return None
 
     best_entry = None
     best_score = 0
@@ -1511,7 +1675,7 @@ def find_knowledge(query: str) -> str | None:
             best_score = overlap
             best_entry = entry
 
-    if best_entry and best_score >= 1:
+    if best_entry and best_score >= 2:
         return best_entry["content"]
 
     return None
