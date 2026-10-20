@@ -965,12 +965,7 @@ class NAGROBrain:
         if web_results:
             return self._compose_answer(prompt, web_results)
 
-        # 8. Try open source models (Mistral, Qwen, Phi)
-        model_answer = self._try_open_source_model(prompt)
-        if model_answer:
-            return model_answer
-
-        # 9. Smart fallback — NEVER says "can't connect"
+        # 8. Smart fallback — NEVER says "can't connect"
         return self._smart_fallback(prompt)
 
     def _try_direct_answer(self, prompt: str) -> str | None:
@@ -1050,7 +1045,7 @@ class NAGROBrain:
             "what is the moon": "The Moon is Earth's only natural satellite, orbiting at an average distance of ~384,400 km. It has no atmosphere, no liquid water on its surface, and its gravity is about 1/6th of Earth's. Neil Armstrong was the first person to walk on the Moon (July 20, 1969).",
             "who made nagro": "**NAGRO 4.1** (Neural Adaptive Generative Reasoning Operator) was created by **Aditya Kumar**. It's a self-built AI engine with built-in knowledge, open-source model integration, and advanced reasoning capabilities.",
             "who created nagro": "**NAGRO 4.1** was created by **Aditya Kumar**. It's a Neural Adaptive Generative Reasoning Operator — a self-built AI system.",
-            "what is nagro": "**NAGRO 4.1** (Neural Adaptive Generative Reasoning Operator) is a self-built AI assistant created by **Aditya Kumar**. It uses its own reasoning engine, a built-in knowledge base of 150+ topics, Wikipedia integration, and open-source models (Mistral, Qwen, Phi) — all without any paid APIs.",
+            "what is nagro": "**NAGRO 4.1** (Neural Adaptive Generative Reasoning Operator) is a 100% self-built AI assistant created by **Aditya Kumar**. It uses its own reasoning engine, a built-in knowledge base of 150+ topics, self-built code generator (50+ patterns), creative writing engine, Wikipedia integration, and web search — all without any paid APIs or external AI models.",
             "1+1": "1 + 1 = **2**",
             "2+2": "2 + 2 = **4**",
             "what is 1+1": "1 + 1 = **2**",
@@ -1200,29 +1195,9 @@ class NAGROBrain:
                 return self._make_explanation(multi_kb, prompt)
             return multi_kb
 
-        # Case 7: Try open source models (Mistral, Qwen, Phi — free, no API key)
-        model_answer = self._try_open_source_model(prompt)
-        if model_answer:
-            return model_answer
-
-        # Case 8: Smart contextual fallback — NEVER say "can't connect"
+        # Case 7: Smart contextual fallback — NEVER say "can't connect"
         return self._smart_fallback(prompt)
 
-    def _try_open_source_model(self, prompt: str, task: str = "general") -> str | None:
-        """Try getting an answer from free open source models."""
-        try:
-            from nagro.core.open_source_models import generate_with_model
-            result = generate_with_model(
-                f"[INST] {prompt} [/INST]",
-                task=task,
-                max_tokens=1024,
-            )
-            if result and len(result) > 30:
-                topic = self._extract_topic(prompt)
-                return f"## {topic.title()}\n\n{result}"
-        except Exception:
-            pass
-        return None
 
     def _extract_wiki_additions(self, kb: str, wiki: str) -> str | None:
         """Extract new sentences from wiki that aren't already in kb."""
@@ -1534,10 +1509,6 @@ class NAGROBrain:
         code = self._generate_code(prompt, lang)
         if code:
             return code
-
-        model_code = self._try_open_source_model(prompt, task="code")
-        if model_code:
-            return model_code
 
         results = self._web_search(prompt + " code example")
         if results:
