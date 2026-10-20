@@ -671,6 +671,9 @@ class NAGROBrain:
         if followup:
             prompt = followup
 
+        # Fix typos BEFORE cleaning and classifying
+        prompt = self._fix_spelling(prompt)
+
         cleaned = self._clean_prompt(prompt)
 
         task = self._classify(cleaned)
@@ -902,6 +905,154 @@ class NAGROBrain:
         if buf:
             yield buf
 
+    # ── Spell Correction ──
+
+    _SPELL_DICT: dict[str, str] = {
+        # Code-related typos
+        "calculater": "calculator", "claulator": "calculator", "calcultor": "calculator",
+        "calcualtor": "calculator", "calculaor": "calculator", "calulator": "calculator",
+        "caluclator": "calculator", "claculator": "calculator",
+        "progrm": "program", "progam": "program", "programm": "program", "prgram": "program",
+        "progaram": "program", "porogram": "program",
+        "fucntion": "function", "funtion": "function", "funciton": "function", "functon": "function",
+        "fuction": "function", "fnction": "function",
+        "algorthm": "algorithm", "algorythm": "algorithm", "alorithm": "algorithm",
+        "aglorithm": "algorithm", "algorithim": "algorithm",
+        "pyhton": "python", "pythn": "python", "pyton": "python", "phython": "python",
+        "pythong": "python", "ptyhon": "python",
+        "javscript": "javascript", "javascirpt": "javascript", "javasript": "javascript",
+        "javascrpt": "javascript", "javacript": "javascript", "jvascript": "javascript",
+        "webiste": "website", "websit": "website", "wesite": "website", "wbsite": "website",
+        "databse": "database", "dtabase": "database", "databas": "database", "datbase": "database",
+        "srver": "server", "sever": "server", "servr": "server",
+        "aplication": "application", "applcation": "application", "applicaton": "application",
+        "apllication": "application", "applicaiton": "application",
+        "aspp": "app", "aap": "app", "ap": "app",
+        "cde": "code", "cod": "code", "coed": "code",
+        "buton": "button", "buttn": "button", "botton": "button",
+        "disply": "display", "dispaly": "display", "dsiplay": "display",
+        "improt": "import", "imort": "import",
+        "clss": "class", "calss": "class", "clas": "class",
+        "arry": "array", "aray": "array", "arrya": "array",
+        "strng": "string", "stirng": "string", "sting": "string",
+        "prnt": "print", "pritn": "print", "pirnt": "print",
+        "variale": "variable", "varible": "variable", "variabel": "variable",
+        "lop": "loop", "lopp": "loop", "loopp": "loop",
+        "condtion": "condition", "conditon": "condition",
+        "eror": "error", "errro": "error", "erro": "error",
+        "rquest": "request", "requst": "request", "requets": "request",
+        "respnse": "response", "resonse": "response", "reponse": "response",
+        "libarary": "library", "libary": "library", "librry": "library",
+        "framwork": "framework", "fraework": "framework",
+        "templete": "template", "tempalte": "template", "templat": "template",
+        "intger": "integer", "integr": "integer",
+        "boolen": "boolean", "bolean": "boolean",
+        "dictionry": "dictionary", "dictinary": "dictionary", "dictonary": "dictionary",
+        "opeartor": "operator", "opertor": "operator",
+        "inhertnce": "inheritance", "inheritnce": "inheritance",
+        "polymrphism": "polymorphism", "polymorphsm": "polymorphism",
+        "encapslation": "encapsulation", "encapsultion": "encapsulation",
+        "recurson": "recursion", "recursoin": "recursion", "recusion": "recursion",
+        "fibonaci": "fibonacci", "fibbonacci": "fibonacci", "fibonnaci": "fibonacci",
+        "bianry": "binary", "bnary": "binary", "binery": "binary",
+        "serach": "search", "saerch": "search", "seach": "search",
+        "srot": "sort", "sotr": "sort",
+        "todoo": "todo", "tood": "todo",
+        "logn": "login", "logni": "login", "lgin": "login",
+        "sinup": "signup", "singup": "signup", "signp": "signup",
+        "scrper": "scraper", "scaper": "scraper", "scarper": "scraper",
+        # General typos
+        "waht": "what", "whta": "what", "wht": "what",
+        "howw": "how", "hwo": "how",
+        "explan": "explain", "explian": "explain", "expain": "explain",
+        "wrtie": "write", "wirte": "write", "wrte": "write", "writ": "write",
+        "craete": "create", "crete": "create", "creat": "create",
+        "bild": "build", "buld": "build", "biuld": "build",
+        "genrate": "generate", "genarate": "generate", "generat": "generate",
+        "implment": "implement", "implemnt": "implement",
+        "deisgn": "design", "desgin": "design", "desgn": "design",
+        "devlop": "develop", "devleop": "develop", "develope": "develop",
+        "mak": "make", "mke": "make", "amke": "make",
+        "plese": "please", "pls": "please", "plz": "please",
+        "thnk": "think", "thnik": "think",
+        "knwo": "know", "konw": "know",
+        # Hindi transliteration typos
+        "bano": "banao", "bnao": "banao", "bnaao": "banao",
+        "likhe": "likho", "lkho": "likho", "likoh": "likho",
+        "btao": "batao", "bato": "batao",
+        "smjhao": "samjhao", "samjaho": "samjhao",
+        "kro": "karo", "krao": "karo",
+    }
+
+    def _fix_spelling(self, prompt: str) -> str:
+        words = prompt.split()
+        fixed = []
+        changed = False
+        for w in words:
+            low = w.lower().strip(".,;:!?\"'()")
+            if low in self._SPELL_DICT:
+                replacement = self._SPELL_DICT[low]
+                if w[0].isupper():
+                    replacement = replacement.capitalize()
+                fixed.append(replacement)
+                changed = True
+            else:
+                closest = self._fuzzy_word_match(low)
+                if closest and closest != low:
+                    if w[0].isupper():
+                        closest = closest.capitalize()
+                    fixed.append(closest)
+                    changed = True
+                else:
+                    fixed.append(w)
+        return " ".join(fixed) if changed else prompt
+
+    def _fuzzy_word_match(self, word: str) -> str | None:
+        if len(word) < 4:
+            return None
+        important_words = [
+            "calculator", "program", "function", "algorithm", "python", "javascript",
+            "website", "database", "server", "application", "app", "code", "button",
+            "display", "import", "class", "array", "string", "print", "variable",
+            "loop", "condition", "error", "request", "response", "library",
+            "framework", "template", "integer", "boolean", "dictionary", "operator",
+            "inheritance", "polymorphism", "encapsulation", "recursion", "fibonacci",
+            "binary", "search", "sort", "todo", "login", "signup", "scraper",
+            "write", "create", "build", "make", "generate", "implement", "design",
+            "develop", "explain", "course", "tutorial", "project", "game", "chat",
+            "portfolio", "api", "html", "css", "react", "node", "flask", "django",
+            "email", "password", "authentication", "token", "image", "file",
+            "download", "upload", "navbar", "form", "card", "table", "graph",
+            "tree", "stack", "queue", "linked", "hash", "decorator", "generator",
+            "async", "thread", "socket", "regex", "json", "csv", "sql",
+        ]
+        best = None
+        best_dist = 3
+        for target in important_words:
+            d = self._edit_distance(word, target)
+            if d < best_dist and d <= max(1, len(word) // 4):
+                best_dist = d
+                best = target
+        return best
+
+    @staticmethod
+    def _edit_distance(s1: str, s2: str) -> int:
+        if abs(len(s1) - len(s2)) > 3:
+            return 99
+        m, n = len(s1), len(s2)
+        dp = list(range(n + 1))
+        for i in range(1, m + 1):
+            prev = dp[0]
+            dp[0] = i
+            for j in range(1, n + 1):
+                temp = dp[j]
+                if s1[i-1] == s2[j-1]:
+                    dp[j] = prev
+                else:
+                    dp[j] = 1 + min(prev, dp[j], dp[j-1])
+                prev = temp
+        return dp[n]
+
     # ── Classification ──
 
     def _classify(self, prompt: str) -> str:
@@ -917,6 +1068,16 @@ class NAGROBrain:
                      "who made you", "who created you", "who built you"]
         if any(k in p for k in system_kw):
             return "system"
+
+        action_verbs = ["make", "build", "create", "write", "generate", "code",
+                        "implement", "develop", "design", "program",
+                        "banao", "likho", "banawo"]
+        if any(p.startswith(v + " ") or p.startswith(v + " a ") or
+               p.startswith(v + " me ") or p.startswith("bro " + v) for v in action_verbs):
+            if not any(w in p for w in ["poem", "story", "essay", "speech",
+                                         "song", "lyrics", "kavita", "kahani",
+                                         "letter", "email"]):
+                return "code"
 
         scores = {
             "code": self._score_code(p),
