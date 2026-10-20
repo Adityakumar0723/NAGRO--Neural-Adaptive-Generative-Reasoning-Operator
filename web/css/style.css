@@ -438,6 +438,115 @@ body {
     display: block;
 }
 
+/* ── Voice Agent ── */
+.voice-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition);
+    flex-shrink: 0;
+}
+.voice-btn:hover { background: var(--bg-hover); color: var(--text); }
+.voice-btn.listening {
+    color: #ef4444;
+    animation: pulse-mic 1.2s infinite;
+    background: rgba(239, 68, 68, 0.1);
+}
+@keyframes pulse-mic {
+    0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+}
+
+.voice-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 16px;
+    gap: 12px;
+    border-top: 1px solid var(--border);
+}
+.voice-bar-left, .voice-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.voice-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-muted);
+    user-select: none;
+}
+.voice-toggle input { display: none; }
+.toggle-slider {
+    width: 32px;
+    height: 18px;
+    background: var(--bg-hover);
+    border-radius: 9px;
+    position: relative;
+    transition: background var(--transition);
+    flex-shrink: 0;
+}
+.toggle-slider::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    transition: all var(--transition);
+}
+.voice-toggle input:checked + .toggle-slider {
+    background: var(--accent);
+}
+.voice-toggle input:checked + .toggle-slider::after {
+    left: 16px;
+    background: #0f172a;
+}
+.voice-select {
+    background: var(--bg-main);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-family: var(--font);
+    outline: none;
+    max-width: 200px;
+    cursor: pointer;
+}
+.voice-select:focus { border-color: var(--accent); }
+
+.voice-stop-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: background var(--transition);
+}
+.voice-stop-btn:hover { background: #dc2626; }
+.voice-stop-btn.hidden { display: none; }
+
+.speak-btn { color: var(--accent); }
+.speak-btn:hover { color: #fbbf24; }
+
 /* ── Thinking ── */
 .thinking {
     display: flex;
