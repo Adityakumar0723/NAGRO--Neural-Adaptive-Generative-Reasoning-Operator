@@ -110,18 +110,18 @@ def unload_model():
 
 
 def get_model_info() -> dict:
-    try:
-        from nagro.core.open_source_models import get_available_models
-        models = get_available_models()
-    except Exception:
-        models = []
     return {
         "loaded": _brain is not None,
-        "model": "NAGRO 4.1 Brain + Open Source Models",
+        "model": "NAGRO 4.1 Self-Built Brain",
         "engine": "NAGRO Custom Engine",
         "context_length": settings.nagro_context_length,
         "max_tokens": settings.nagro_max_tokens,
-        "open_source_models": [m["name"] for m in models],
+        "open_source_models": [],
         "external_paid_apis": "none",
-        "data_sources": ["Knowledge Base (150+ topics)", "Wikipedia API", "DuckDuckGo Search"],
+        "data_sources": [
+            "Self-Built Knowledge Base (150+ topics)",
+            "Self-Built Code Generator (50+ patterns)",
+            "Wikipedia API (free)",
+            "DuckDuckGo Search (free)",
+        ],
     }

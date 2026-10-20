@@ -47,8 +47,17 @@ class BaseAgent(ABC):
         self,
         prompt: str,
         max_tokens: int | None = None,
+        history: list[dict[str, str]] | None = None,
     ):
         """Stream tokens from the local NAGRO inference engine."""
+        if history:
+            from nagro.core.inference import generate_stream_with_history
+            messages = history + [{"role": "user", "content": prompt}]
+            return generate_stream_with_history(
+                messages=messages,
+                system_prompt=self.system_prompt,
+                max_tokens=max_tokens,
+            )
         from nagro.core.inference import generate_stream
         return generate_stream(
             prompt=prompt,

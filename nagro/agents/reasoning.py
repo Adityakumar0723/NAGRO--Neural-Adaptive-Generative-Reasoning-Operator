@@ -28,7 +28,7 @@ class ReasoningAgent(BaseAgent):
         history: list[dict[str, str]],
     ) -> AsyncIterator[str]:
         try:
-            for chunk in self._generate_stream(message):
+            for chunk in self._generate_stream(message, history=history):
                 yield chunk
         except Exception:
             yield self._fallback_response(message)

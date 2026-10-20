@@ -40,7 +40,7 @@ class MathAgent(BaseAgent):
             f"{message}\n\nSolve this step by step with clear working."
         )
         try:
-            for chunk in self._generate_stream(enhanced):
+            for chunk in self._generate_stream(enhanced, history=history):
                 yield chunk
         except Exception:
             yield self._fallback_response(message)

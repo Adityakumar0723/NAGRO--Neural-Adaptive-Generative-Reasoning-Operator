@@ -749,11 +749,12 @@ class NAGROBrain:
         p = prompt.lower().strip()
 
         followup_phrases = {
-            "tell me more": True, "aur batao": True, "more details": True,
-            "elaborate": True, "explain more": True, "go on": True,
-            "continue": True, "aur": True, "aage batao": True,
-            "keep going": True, "what else": True, "aur kya": True,
-            "detail mein batao": True, "vistar se batao": True,
+            "tell me more", "aur batao", "more details",
+            "elaborate", "explain more", "go on",
+            "continue", "aur", "aage batao",
+            "keep going", "what else", "aur kya",
+            "detail mein batao", "vistar se batao",
+            "and more", "give me more", "more info",
         }
         if p in followup_phrases or any(p.startswith(f) for f in followup_phrases):
             if self._last_topic:
@@ -765,16 +766,99 @@ class NAGROBrain:
             r"^(?:iske|uske|iska|uska)\s+(?:baare|bare)\s+(?:mein|me)",
             r"^(?:tell me about|about)\s+(?:this|that|it)",
             r"^(?:ye kya hai|wo kya hai|kya hai ye)",
+            r"^(?:what about|how about)\s+",
+            r"^(?:and |but )?(?:what|how|why)\s+(?:about|if)\b",
         ]
         for pat in ref_patterns:
             if re.match(pat, p):
                 if self._last_topic:
-                    return f"explain {self._last_topic}"
+                    return f"about {self._last_topic}: {prompt}"
+
+        positional = re.match(
+            r'(?:what|explain|batao|samjhao)?\s*(?:about\s+)?(?:the\s+)?'
+            r'(first|second|third|fourth|fifth|last|next|previous|'
+            r'pehla|doosra|teesra|chautha|1st|2nd|3rd|4th|5th)\s+'
+            r'(point|one|item|step|part|example|option|thing|wala|cheez)',
+            p
+        )
+        if positional and self._conversation_context:
+            last_answer = ""
+            for msg in reversed(self._conversation_context):
+                if msg.get("role") == "assistant":
+                    last_answer = msg.get("content", "")
+                    break
+            if last_answer:
+                return f"From my previous answer about {self._last_topic}:\n\n{last_answer}\n\nNow specifically explain the {positional.group(1)} {positional.group(2)}"
+
+        if self._conversation_context and len(p.split()) <= 6:
+            short_ref = re.match(
+                r'(?:what is|what are|explain|how does|how do|why|kya hai|kaise)\s+(.+)',
+                p
+            )
+            if short_ref:
+                ref_topic = short_ref.group(1).strip().rstrip("?.")
+                for msg in reversed(self._conversation_context):
+                    if msg.get("role") == "assistant" and ref_topic in msg.get("content", "").lower():
+                        return f"about {ref_topic} (related to {self._last_topic}): {prompt}"
 
         for term, info in self._user_taught.items():
             if term in p:
                 if "?" in p or any(q in p for q in ["what", "explain", "how", "why", "batao", "samjhao", "kya"]):
                     return f"Based on what you told me: {info}\n\n{prompt}"
+
+        return None
+
+    def _check_conversation_context(self, prompt: str) -> str | None:
+        """Check if the question can be answered from recent conversation context."""
+        if not self._conversation_context:
+            return None
+
+        p = prompt.lower().strip()
+        words = set(p.split()) - {"a", "an", "the", "is", "are", "was", "what", "how",
+                                    "why", "when", "where", "who", "which", "do", "does",
+                                    "did", "can", "could", "would", "should", "about",
+                                    "me", "tell", "explain", "more", "of", "in", "it",
+                                    "this", "that", "ye", "wo", "kya", "hai", "batao",
+                                    "samjhao", "please", "bro", "bhai"}
+        sig_words = {w for w in words if len(w) > 2}
+
+        if not sig_words:
+            return None
+
+        last_assistant = None
+        last_user_q = None
+        for msg in reversed(self._conversation_context):
+            if msg.get("role") == "assistant" and not last_assistant:
+                last_assistant = msg.get("content", "")
+            elif msg.get("role") == "user" and not last_user_q:
+                last_user_q = msg.get("content", "")
+            if last_assistant and last_user_q:
+                break
+
+        if not last_assistant:
+            return None
+
+        last_lower = last_assistant.lower()
+        match_count = sum(1 for w in sig_words if w in last_lower)
+
+        if match_count >= 2 and match_count >= len(sig_words) * 0.4:
+            lines = last_assistant.split('\n')
+            relevant = []
+            for line in lines:
+                ll = line.lower().strip()
+                if not ll or len(ll) < 10:
+                    continue
+                line_match = sum(1 for w in sig_words if w in ll)
+                if line_match >= 1:
+                    relevant.append(line.strip())
+
+            if relevant:
+                topic = self._extract_topic(prompt)
+                answer = f"## {topic.title()}\n\n"
+                answer += "From our previous conversation:\n\n"
+                answer += "\n\n".join(relevant[:10])
+                answer += f"\n\n---\n*Would you like me to explain any part of {topic} in more detail?*"
+                return answer
 
         return None
 
@@ -910,6 +994,11 @@ class NAGROBrain:
 
     def _handle_general(self, prompt: str) -> str:
         p = prompt.lower()
+
+        # 0. Check if this relates to previous conversation context
+        context_answer = self._check_conversation_context(prompt)
+        if context_answer:
+            return context_answer
 
         # 1. Check user-taught knowledge first
         for term, info in self._user_taught.items():

@@ -30,7 +30,7 @@ class CodingAgent(BaseAgent):
     ) -> AsyncIterator[str]:
         enhanced = self._enhance_coding_prompt(message)
         try:
-            for chunk in self._generate_stream(enhanced, max_tokens=4096):
+            for chunk in self._generate_stream(enhanced, max_tokens=4096, history=history):
                 yield chunk
         except Exception:
             yield self._fallback_response(message)
