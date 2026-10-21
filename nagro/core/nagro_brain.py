@@ -1525,10 +1525,21 @@ class NAGROBrain:
         short_kw = ["sin", "cos", "tan"]
         score = sum(1 for k in long_kw if self._word_match(k, p))
         score += sum(1 for k in short_kw if self._word_match(k, p))
+        # Arithmetic expression detection — but skip date ranges like "2024-25", "fy2023-24"
+        # and currency / percentage ranges like "10-20%".
         if re.search(r'\d+\s*[\+\-\*/\^%]\s*\d+', p):
-            score += 3
+            # Strip date-range patterns and re-test
+            cleaned = re.sub(r'\b(?:19|20|21)\d{2}\s*-\s*\d{1,4}\b', '', p)  # 2024-25, 1999-2000
+            cleaned = re.sub(r'\bfy\s*\d{2,4}\s*-\s*\d{2,4}\b', '', cleaned, flags=re.I)
+            cleaned = re.sub(r'\b\d+\s*-\s*\d+\s*(?:years?|months?|days?|hours?|%|percent|crore|lakh|million|billion)\b', '', cleaned, flags=re.I)
+            # If an arithmetic expression still remains after cleaning
+            if re.search(r'\d+\s*[\+\-\*/\^%]\s*\d+', cleaned):
+                score += 3
         if re.search(r'(?:average|mean|median|mode|variance)\s+of\s+\d', p):
             score += 3
+        # For long analytical queries (20+ words), math should NOT win unless it clearly asks to solve
+        if len(p.split()) >= 20 and not any(k in p for k in long_kw):
+            score = min(score, 1)
         return score
 
     def _score_creative(self, p: str) -> int:
