@@ -104,6 +104,223 @@ _k(["large language model", "llm", "gpt", "chatgpt", "claude", "llama", "languag
     "**Limitations:** Hallucinations (generating false info), training data cutoff, no real-time knowledge without tools, context window limits."
 )
 
+_k(["ipl", "indian premier league", "virat kohli", "kohli", "rohit sharma",
+    "ms dhoni", "jasprit bumrah", "hardik pandya", "india cricket", "team india",
+    "ipl franchise", "csk", "mi", "rcb", "kkr", "srh", "dc", "pbks", "rr", "gt", "lsg",
+    "indian cricket team", "cricket india"],
+    "**Indian Premier League (IPL)** is the world's biggest T20 cricket league, run by the BCCI since 2008.\n\n"
+    "**Teams (10):**\n"
+    "- **CSK (Chennai Super Kings):** MS Dhoni era, 5-time champions, yellow army.\n"
+    "- **MI (Mumbai Indians):** Rohit Sharma captained, 5-time champions, Ambani-owned.\n"
+    "- **RCB (Royal Challengers Bengaluru):** Virat Kohli's team, 2024 WPL and 2025 IPL champions.\n"
+    "- **KKR (Kolkata Knight Riders):** SRK co-owner, 3-time champions.\n"
+    "- **GT, LSG, DC, PBKS, SRH, RR** — strong supporting lineups.\n\n"
+    "**Virat Kohli:** Born 5 Nov 1988 in Delhi. Former India captain, widely considered the most consistent run-scorer of his generation. RCB legend. Retired from Tests (May 2025) and T20Is (June 2024); still playing ODIs and IPL. 80+ international centuries. Married to Anushka Sharma.\n\n"
+    "**Rohit Sharma:** Born 30 April 1987 in Nagpur. India's limited-overs captain through the 2024 T20 World Cup win. Only player with three ODI double centuries. Current MI captain (returned to leadership). 'Hitman' — one of the most feared T20 openers.\n\n"
+    "**India National Team:** 2024 T20 World Cup champions (beat SA in Barbados). Core: Rohit, Virat, Bumrah, Hardik, Rishabh Pant, Shubman Gill, Suryakumar Yadav, Jasprit Bumrah. Head coach Gautam Gambhir (since 2024). Captain across formats transitioning — Shubman Gill is being groomed for Tests.\n\n"
+    "**Economics of IPL:**\n"
+    "- Media rights 2023-27: Rs 48,390 crore (~$5.8B) split between Disney Star (TV) and Viacom18/JioCinema (digital).\n"
+    "- Per-match value: ~Rs 118 crore — higher than NFL on a per-match basis.\n"
+    "- Franchise valuations: top teams (MI, CSK, RCB) at $1.3-1.6B each (as of 2024).\n"
+    "- Sponsorships, central pool, local gate — teams target 40%+ EBITDA.\n\n"
+    "**Audience & social media (for live data check: Twitter/X trending, Instagram engagement, Reddit r/Cricket, r/IndianCricketTeam, YouTube highlights):** Kohli has 270M+ Insta followers (one of top sports accounts globally); Rohit 32M+; IPL hashtags routinely trend worldwide during the season. For current sentiment and viral mapping, use social-media listening tools (Brandwatch, Sprout Social) or scrape via APIs — this engine does not pull live social data."
+)
+
+_k(["zomato", "zomato stock", "deepinder goyal"],
+    "**Zomato** — Indian food-delivery and dining-out giant, founded 2008 by Deepinder Goyal and Pankaj Chaddah.\n\n"
+    "- **Business:** Food delivery, dining-out discovery (Zomato Pro), hyperpure (B2B supply to restaurants), Blinkit (quick-commerce — acquired 2022).\n"
+    "- **IPO:** 2021 at Rs 76. Stock has 5x+ since 2022 lows.\n"
+    "- **Profitability:** Became profitable in FY24. Blinkit now a major revenue driver.\n"
+    "- **Rebrand:** Changed name to Eternal Ltd (2025) as holding structure.\n"
+    "- **Competition:** Swiggy (main rival), Zepto (quick commerce)."
+)
+
+_k(["swiggy", "sriharsha majety"],
+    "**Swiggy** — Indian food-delivery platform, founded 2014 by Sriharsha Majety, Nandan Reddy, Rahul Jaimini.\n\n"
+    "- **Business:** Food delivery, Instamart (quick-commerce), Dineout (acquired), Genie (last-mile).\n"
+    "- **IPO:** Nov 2024 at Rs 390. First Indian food-delivery IPO after Zomato.\n"
+    "- **Market share:** Roughly 50-50 with Zomato in food delivery. Instamart smaller than Blinkit.\n"
+    "- **Challenge:** Path to profitability; Instamart losses weighing on consolidated numbers."
+)
+
+_k(["zepto", "aadit palicha", "kaivalya vohra"],
+    "**Zepto** — 10-minute grocery delivery, founded 2021 by Stanford dropouts Aadit Palicha and Kaivalya Vohra.\n\n"
+    "- **Business:** Hyperlocal grocery via dark stores, 10-min delivery promise.\n"
+    "- **Funding:** Raised $1B+ in 2024 at ~$5B valuation.\n"
+    "- **Scale:** 350+ dark stores across top metros.\n"
+    "- **Competition:** Blinkit (Zomato), Instamart (Swiggy), BB Now (BigBasket).\n"
+    "- **IPO:** Expected 2025-26."
+)
+
+_k(["boat lifestyle", "boat earphones", "boat", "aman gupta", "sameer mehta"],
+    "**boAt** — Indian consumer-electronics brand (audio, wearables), founded 2016 by Aman Gupta and Sameer Mehta.\n\n"
+    "- **Products:** Earphones, headphones, smartwatches, speakers.\n"
+    "- **Scale:** India's #1 audio brand, top-3 wearables globally by volume.\n"
+    "- **Aman Gupta** is a Shark on Shark Tank India.\n"
+    "- **IPO:** Filed and withdrawn previously; expected to refile 2025.\n"
+    "- **Challenge:** Low margins; competition from Noise, Boult, Chinese brands."
+)
+
+_k(["zoho", "sridhar vembu"],
+    "**Zoho Corporation** — Indian SaaS company (CRM, email, office suite), founded 1996 by Sridhar Vembu.\n\n"
+    "- **Business:** 50+ SaaS products, 100M+ users worldwide.\n"
+    "- **Model:** Profitable, bootstrapped, private — famously refuses VC.\n"
+    "- **HQ:** Chennai, with rural offices across Tamil Nadu.\n"
+    "- **Revenue:** $1B+ (estimated).\n"
+    "- **Vembu** is known for his rural-development focus and criticism of VC-funded startups."
+)
+
+_k(["razorpay", "harshil mathur", "shashank kumar"],
+    "**Razorpay** — Indian payments and banking platform, founded 2014 by Harshil Mathur and Shashank Kumar (IIT Roorkee).\n\n"
+    "- **Products:** Payment gateway, Razorpay X (neobanking), payroll, capital/lending.\n"
+    "- **Valuation:** $7.5B (2021 Series F). Flipped domicile back to India in 2024.\n"
+    "- **Scale:** 10M+ businesses, processing billions in TPV monthly.\n"
+    "- **Investors:** Tiger Global, Sequoia, GIC, Lone Pine."
+)
+
+_k(["lenskart", "peyush bansal"],
+    "**Lenskart** — Indian eyewear retailer (online + offline), founded 2010 by Peyush Bansal, Amit Chaudhary, Sumeet Kapahi.\n\n"
+    "- **Scale:** 2000+ stores in India + international expansion (Southeast Asia, Middle East).\n"
+    "- **Vertical:** Owns design, manufacturing (Rajasthan factory), retail.\n"
+    "- **Valuation:** $5B+ (2024).\n"
+    "- **IPO:** Planned for 2025-26.\n"
+    "- **Peyush Bansal** is a Shark on Shark Tank India."
+)
+
+_k(["shaadi.com", "anupam mittal"],
+    "**Shaadi.com** — India's largest matrimonial platform, founded 1996 by Anupam Mittal (People Group).\n\n"
+    "- **Business:** Matchmaking across India + diaspora.\n"
+    "- **Scale:** 35M+ members.\n"
+    "- **Products:** Shaadi.com, Mauj Mobile, Makaan.com, MauzPay.\n"
+    "- **Anupam Mittal** is a Shark on Shark Tank India."
+)
+
+_k(["bitcoin", "btc", "bitcoin price", "satoshi nakamoto"],
+    "**Bitcoin (BTC)** — First and largest cryptocurrency, created in 2008 by pseudonymous Satoshi Nakamoto. Launched Jan 2009.\n\n"
+    "- **Supply cap:** 21 million BTC (hard-coded). ~19.8M mined as of 2025.\n"
+    "- **Mechanism:** Proof-of-Work consensus using SHA-256 mining. Block reward halves every ~4 years. Last halving: Apr 2024.\n"
+    "- **ETFs:** US spot Bitcoin ETFs approved Jan 2024 — BlackRock IBIT, Fidelity FBTC leading flows.\n"
+    "- **Milestones:** First $1 → 2011. First $1,000 → 2013. First $20K → 2017. First $69K → Nov 2021. First $100K → Dec 2024.\n"
+    "- **Use cases:** Store of value ('digital gold'), remittances, inflation hedge in some countries (Argentina, Turkey, Nigeria).\n"
+    "- **Criticism:** Energy use (~150 TWh/yr), price volatility, limited transaction throughput (~7 tx/sec)."
+)
+
+_k(["ethereum", "eth", "vitalik buterin"],
+    "**Ethereum (ETH)** — Second-largest crypto, launched 2015 by Vitalik Buterin et al. Programmable blockchain for smart contracts.\n\n"
+    "- **Consensus:** Switched from Proof-of-Work to Proof-of-Stake in Sept 2022 (The Merge). ~99.9% energy reduction.\n"
+    "- **Layer 2:** Arbitrum, Optimism, Base (Coinbase), zkSync, Polygon — scale ETH for cheap transactions.\n"
+    "- **DeFi:** $100B+ TVL across Aave, Uniswap, MakerDAO.\n"
+    "- **NFTs:** Most non-fungible tokens live on Ethereum/L2s.\n"
+    "- **ETH ETFs:** US spot ETFs approved May 2024.\n"
+    "- **EIPs:** EIP-1559 (fee burn), EIP-4844 (blob transactions for L2), Pectra upgrade (2025)."
+)
+
+_k(["solana", "sol", "anatoly yakovenko"],
+    "**Solana (SOL)** — High-performance L1 blockchain, launched 2020 by Anatoly Yakovenko (ex-Qualcomm).\n\n"
+    "- **Design:** Proof-of-History + Proof-of-Stake for high throughput (~65,000 TPS theoretical).\n"
+    "- **Low fees:** <$0.01 per transaction, enabling consumer apps and memecoin trading.\n"
+    "- **Firedancer:** Jump Crypto's independent validator client aimed at 1M+ TPS.\n"
+    "- **Ecosystem:** Phantom wallet, Jupiter DEX, Pump.fun (memecoin launchpad), Backpack.\n"
+    "- **2024 price run:** Hit new ATH above $260.\n"
+    "- **Criticism:** Historical network outages; concentration of early supply."
+)
+
+_k(["openai", "sam altman", "chatgpt company"],
+    "**OpenAI** — American AI research + product company, founded Dec 2015 by Sam Altman, Elon Musk, Ilya Sutskever, Greg Brockman and others.\n\n"
+    "- **Mission:** Build safe AGI that benefits humanity.\n"
+    "- **Structure:** Capped-profit subsidiary under non-profit; restructuring toward for-profit (2024-25).\n"
+    "- **Products:** ChatGPT (300M+ weekly active users), API, DALL-E, Sora (video), o-series (reasoning).\n"
+    "- **Revenue:** ~$3.7B projected (2024), targeting $11B+ (2025). Still unprofitable due to compute spend.\n"
+    "- **Microsoft partnership:** $13B+ invested; Azure exclusive cloud until 2024, now expanded.\n"
+    "- **Leadership:** CEO Sam Altman. Mira Murati (CTO) left 2024."
+)
+
+_k(["nvidia", "nvda", "jensen huang"],
+    "**Nvidia** — American semiconductor company dominating AI accelerators. Founded 1993 by Jensen Huang, Chris Malachowsky, Curtis Priem.\n\n"
+    "- **Dominance:** ~90%+ of AI training/inference accelerators. CUDA software stack is the moat.\n"
+    "- **Chips:** H100 (2022), H200 (2024), B100/B200 Blackwell (2024-25), Rubin (next-gen).\n"
+    "- **Revenue:** From ~$27B (FY23) to ~$130B+ (FY25) — fastest trillion-dollar scale-up in tech history.\n"
+    "- **Market cap:** Crossed $3 trillion (2024), briefly most valuable company in the world.\n"
+    "- **Challenges:** Export controls to China (A800/H800 restrictions); AMD MI300X; Google TPU; AWS Trainium; custom chips from Meta, Microsoft."
+)
+
+_k(["ai economics", "ai industry economics", "cost of ai", "cost of training", "training cost",
+    "inference cost", "inference economics", "ai infrastructure", "ai business model",
+    "ai monetization", "ai pricing", "api pricing", "ai subscription", "ai enterprise",
+    "model economics", "ai gpu", "ai data center", "ai hardware"],
+    "AI economics spans five layers — chips, data-centers, model training, model serving, and the application layer. Each has its own cost structure and competitive dynamics.\n\n"
+    "**1. Training Costs (where disclosed or credibly estimated)**\n"
+    "- GPT-4 training: estimated $100M+ (Sam Altman confirmed >$100M).\n"
+    "- Gemini Ultra: Stanford AI Index estimated ~$191M in compute.\n"
+    "- Llama 3.1 405B: Meta used ~16,000 H100 GPUs; estimated $60–100M in compute alone.\n"
+    "- Frontier training runs are doubling in compute every ~6 months (Epoch AI data).\n"
+    "- Training cost = GPU-hours × hourly rate + engineer salaries + data acquisition + failed runs. Compute dominates (70–90%).\n\n"
+    "**2. Inference Economics**\n"
+    "- Inference is a per-query cost: GPU time × tokens generated. Unlike training, it scales with usage.\n"
+    "- Inference-to-training spend has flipped: companies now spend 5–10× more on inference than training at scale.\n"
+    "- Per-token API prices have dropped ~10× every 12–18 months (OpenAI GPT-4 Turbo → GPT-4o → o-series shows this trend).\n"
+    "- OpenAI claims ~85% gross margins on API inference at scale.\n"
+    "- Smaller distilled/quantized models (Llama 3 8B, Mistral 7B) deliver GPT-3.5-class quality at 1/50th the cost.\n\n"
+    "**3. Hardware Utilization**\n"
+    "- Nvidia H100: ~$30-40K per card; MFU (model flops utilization) in training usually 30–55%.\n"
+    "- Inference serving MFU is lower (10–30%) because of batching and memory bandwidth bottlenecks.\n"
+    "- Nvidia controls ~90%+ of the AI accelerator market. AMD MI300X, Google TPU v5p, AWS Trainium are growing alternatives.\n"
+    "- A single H100 draws ~700W peak; H200/B100/B200 are higher. Cooling and power delivery are the real constraint.\n\n"
+    "**4. Electricity and Cooling**\n"
+    "- Modern AI data-center campus: 100–1000+ MW. Hyperscalers are planning gigawatt-class campuses (Stargate, Meta Hyperion).\n"
+    "- Training a frontier model consumes GWh of electricity. Inference at scale is comparable to training over time.\n"
+    "- Liquid cooling (direct-to-chip, immersion) is replacing air cooling for H100/B100 density. PUE in top campuses ~1.1.\n"
+    "- Water usage for cooling is a growing political issue (several US sites face local pushback).\n"
+    "- Nuclear PPAs (Microsoft–Three Mile Island, Amazon–Talen) show the power bottleneck is now binding.\n\n"
+    "**5. Networking**\n"
+    "- Training clusters need low-latency, high-bandwidth interconnect (InfiniBand NDR 400Gbps, Nvidia NVLink).\n"
+    "- A 100,000-GPU cluster has as much networking cost as compute cost.\n"
+    "- Networking failures are the #1 cause of training-run stalls at scale.\n\n"
+    "**6. Data-Center Construction**\n"
+    "- An AI data-center costs $5–10B+ for a GW-class campus. Build time 2–4 years.\n"
+    "- Capex is dominated by GPUs (50–70%), then power equipment, then real estate and shell.\n"
+    "- Depreciation schedules on GPUs are being shortened to 3–4 years as new generations compound.\n\n"
+    "**7. Cloud Dependency**\n"
+    "- AWS, Microsoft Azure, Google Cloud, Oracle, and CoreWeave are the main AI compute providers.\n"
+    "- Microsoft–OpenAI, Amazon–Anthropic (~$8B investment), Google–Anthropic are examples of compute-for-equity deals.\n"
+    "- Startups pay cloud GPU rentals of $2–8/GPU-hour depending on commitment length.\n"
+    "- Vertical integration is accelerating — hyperscalers want their own silicon (Trainium, TPU, Maia).\n\n"
+    "**8. Model Serving**\n"
+    "- Serving stack: load balancer → routing → batching → KV-cache management → GPU inference.\n"
+    "- Continuous batching (vLLM, TensorRT-LLM) can 2–5× throughput.\n"
+    "- Speculative decoding, quantization (INT8/FP8), and MoE routing reduce per-token cost.\n"
+    "- Edge inference (phones, laptops) with small models eliminates server cost for simple tasks.\n\n"
+    "**9. API Pricing**\n"
+    "- GPT-4o: ~$2.50/M input, $10/M output tokens.\n"
+    "- Claude Sonnet: ~$3/M input, $15/M output.\n"
+    "- Prices are falling fast; expect another 5–10× drop over 2 years.\n"
+    "- Volume discounts, cached prompts, and batch APIs cut effective price 50–80%.\n\n"
+    "**10. Enterprise Contracts**\n"
+    "- Large companies buy annual commitments: $500K–$50M+ depending on usage.\n"
+    "- Terms include data privacy (no training on customer data), SOC 2 / ISO 27001, dedicated capacity, and SLA.\n"
+    "- Microsoft Copilot, Google Workspace AI, Salesforce Einstein show enterprise is becoming the main revenue channel.\n\n"
+    "**11. Subscription Monetization**\n"
+    "- ChatGPT Plus/Pro: $20/$200 per month. Claude Pro: $20/month. Gemini Advanced: $20/month.\n"
+    "- OpenAI estimated to have ~10M+ paying subscribers, ARR estimated $3–4B+ (not official).\n"
+    "- Subscription is sticky but has usage caps to protect inference cost.\n\n"
+    "**12. Advertising Possibilities**\n"
+    "- Google is integrating AI into search; AI Overviews may compress ad real estate.\n"
+    "- Perplexity, OpenAI reportedly exploring sponsored answers / shopping affiliate.\n"
+    "- Ads inside AI responses raise trust problems — risk of answer manipulation.\n\n"
+    "**13. Application-Layer Economics**\n"
+    "- The 'thin wrapper' problem: many AI startups pass through model cost + markup, with little moat.\n"
+    "- Winners build proprietary data, workflows, distribution, and reasoning on top.\n"
+    "- Verticals showing durable margins: legal (Harvey), coding (Cursor), customer support (Sierra), biotech, defense.\n"
+    "- Gross margin at the app layer is often 40–60% vs 70–85% at the model provider.\n\n"
+    "**14. Could Declining Inference Costs Change What's Viable?**\n"
+    "- Yes — significantly. Each 10× cost drop unlocks a tier of new applications:\n"
+    "  - At $0.01/query: assistant features embedded into every piece of software.\n"
+    "  - At $0.001/query: AI inside every notification, every form field, every log line.\n"
+    "  - At $0.0001/query: continuous ambient AI — always-on agents, personal copilots that watch all your context.\n"
+    "- This has historical parallels: cheaper electricity, cheaper storage, cheaper bandwidth each enabled new industries.\n"
+    "- Risks: cheaper inference might not translate to cheaper apps if margins get captured by model providers; and lower cost increases abuse surface (spam, deepfakes, flood attacks)."
+)
+
 _k(["anthropic", "claude ai"],
     "Anthropic is an AI safety company founded in 2021 by Dario Amodei and Daniela Amodei (former OpenAI VP). Headquartered in San Francisco.\n\n"
     "**Products:**\n"
@@ -1210,6 +1427,27 @@ class NAGROBrain:
         if any(k in p for k in system_kw):
             return "system"
 
+        # Analytical / research intent — these are NEVER code requests even if
+        # they mention technical terms like "api", "application", "cloud".
+        analytical_verbs = ["analyze", "investigate", "examine", "explain", "describe",
+                            "discuss", "evaluate", "assess", "review", "compare",
+                            "research", "study", "explore", "summarize", "summarise",
+                            "overview", "break down", "deep dive", "walk through"]
+        is_analytical = any(p.startswith(v + " ") or p.startswith(v + ":") or
+                            f" {v} " in p[:60] for v in analytical_verbs)
+        # Long queries (30+ words) are almost always analytical/research, not code
+        long_query = len(p.split()) >= 30
+        if is_analytical or long_query:
+            # Still allow code if it unambiguously says to write code
+            unambiguous_code = any(k in p for k in ["write code", "write a program",
+                                                     "write a function", "write a script",
+                                                     "code likho", "program banao",
+                                                     "give me the code", "python code for",
+                                                     "javascript code for", "html code for"])
+            if not unambiguous_code:
+                # route analytical queries to general handler
+                return "general"
+
         action_verbs = ["make", "build", "create", "write", "generate", "code",
                         "implement", "develop", "design", "program",
                         "banao", "likho", "banawo"]
@@ -1351,6 +1589,13 @@ class NAGROBrain:
                     f"Would you like me to go deeper into any specific aspect?"
                 )
 
+        # 2b. Long multi-entity analytical queries → report handler FIRST
+        # (before single-KB match, so it doesn't short-circuit on one entity)
+        if len(prompt.split()) >= 20:
+            report = self._handle_analytical_report(prompt)
+            if report:
+                return report
+
         # 3. Try direct Q&A first (quick factual answers)
         direct = self._try_direct_answer(prompt)
         if direct:
@@ -1388,8 +1633,148 @@ class NAGROBrain:
         if web_results:
             return self._compose_answer(prompt, web_results)
 
-        # 9. Smart fallback — NEVER says "can't connect"
+        # 9. Multi-entity analytical report (for long complex queries)
+        if len(prompt.split()) >= 20:
+            report = self._handle_analytical_report(prompt)
+            if report:
+                return report
+
+        # 10. Smart fallback — NEVER says "can't connect"
         return self._smart_fallback(prompt)
+
+    def _handle_analytical_report(self, prompt: str) -> str | None:
+        """For long analytical/research queries that mention multiple entities,
+        build a structured report by pulling KB content for each entity."""
+        p = prompt.lower()
+
+        # Extract entities — proper nouns from original (not lowered) prompt
+        entities = set()
+        for m in re.finditer(r"\b([A-Z][a-z]+(?:[A-Z]?[a-z]*)*(?:\s+[A-Z][a-z]+){0,3})", prompt):
+            e = m.group(1).strip()
+            if e.lower() in {"the", "a", "an", "and", "or", "but", "if", "to", "from",
+                             "include", "including", "such", "as", "like", "where",
+                             "create", "give", "analyze", "investigate", "examine",
+                             "latest", "intelligence", "report", "trends", "sentiment",
+                             "discussion", "discussions", "mapping", "engagement",
+                             "audience", "news", "platforms", "franchise", "doc",
+                             "pdf", "ppt", "excel", "linkedin", "reddit", "twitter",
+                             "instagram", "youtube", "x"}:
+                continue
+            if len(e) < 2:
+                continue
+            entities.add(e)
+
+        # Also look for lowercased technical terms the KB covers
+        extra_keywords = [
+            "bitcoin", "ethereum", "solana", "crypto", "ai", "machine learning",
+            "deep learning", "ipl", "cricket", "kohli", "virat kohli", "rohit sharma",
+            "zomato", "swiggy", "zepto", "boat", "shaadi.com", "zoho", "razorpay",
+            "lenskart", "openai", "anthropic", "nvidia", "chatgpt", "claude",
+            "ai economics", "training cost", "inference", "api pricing",
+        ]
+        for kw in extra_keywords:
+            if kw in p:
+                entities.add(kw.title())
+
+        if len(entities) < 2:
+            return None  # Not a multi-entity query
+
+        # Pull KB content for each entity — STRICT matching only
+        from nagro.core.nagro_brain import KNOWLEDGE
+        # Skip entities that are too short or too generic
+        skip_entities = {"the", "a", "an", "ai", "ml", "us", "uk", "eu", "api",
+                          "ipo", "ceo", "cfo", "gpu", "cpu", "indian", "india",
+                          "american", "chinese", "and", "or", "but"}
+
+        sections = []  # list of (display_name, kb_text, canonical_key)
+        covered_canonical = set()  # canonical KB keys already added
+
+        # Sort entities by length (longer first — more specific matches win)
+        for ent in sorted(entities, key=lambda x: -len(x)):
+            key = ent.lower().strip().rstrip(".,!?")
+            if key in skip_entities or len(key) < 3:
+                continue
+            kb_entry = None
+            canonical = None
+            # Direct exact match
+            if key in KNOWLEDGE:
+                kb_entry = KNOWLEDGE[key]
+                canonical = KNOWLEDGE[key][0][0]  # first alias is canonical
+            else:
+                # Match only if key appears as a FULL alias in KB (not substring)
+                for k_key, (aliases, text) in KNOWLEDGE.items():
+                    if key in [a.lower() for a in aliases]:
+                        kb_entry = (aliases, text)
+                        canonical = aliases[0]
+                        break
+            if not kb_entry:
+                continue
+            if canonical in covered_canonical:
+                continue
+            covered_canonical.add(canonical)
+            sections.append((canonical.title(), kb_entry[1]))
+
+        if not sections:
+            return None
+
+        # Detect what "aspects" the user asked about — social sentiment, hiring, etc.
+        aspects_requested = []
+        aspect_map = [
+            (["sentiment", "reddit sentiment", "twitter sentiment"], "social sentiment"),
+            (["engagement", "viral", "trending", "twitter", "instagram", "reddit"], "social engagement"),
+            (["hiring", "linkedin", "jobs"], "hiring / talent"),
+            (["funding", "investment", "venture", "series"], "funding"),
+            (["stock", "share price", "market cap", "ipo"], "stock / market"),
+            (["growth", "market growth", "valuation"], "growth"),
+            (["infrastructure", "data center", "data-center", "gpu"], "infrastructure"),
+        ]
+        for keywords, label in aspect_map:
+            if any(kw in p for kw in keywords):
+                aspects_requested.append(label)
+
+        # Detect deliverable format asks
+        wants_doc = any(w in p for w in ["doc", "report", "document", "pdf", "ppt",
+                                           "presentation", "excel", "spreadsheet"])
+
+        # Build the report
+        topic = self._extract_topic(prompt)
+        out = f"## 📊 Analytical Report: {topic.title()}\n\n"
+        out += "This is a structured analytical summary pulled from NAGRO's knowledge base. "
+        out += "Items that require **live data** (social sentiment, viral trends, real-time hiring, live stock movements) are flagged as such — this engine does not fetch live social or market feeds.\n\n"
+
+        if aspects_requested:
+            out += f"**Aspects you asked about:** {', '.join(aspects_requested)}\n\n"
+
+        out += "---\n\n"
+
+        for i, (ent, text) in enumerate(sections, 1):
+            out += f"### {i}. {ent}\n\n{text}\n\n"
+
+        if aspects_requested:
+            out += "---\n\n### 🔴 Live-data aspects (not covered here)\n\n"
+            live_notes = {
+                "social sentiment": "Reddit / Twitter / Instagram sentiment — use a listening tool (Brandwatch, Sprout, Meltwater) or the platform APIs. Snapshot sentiment changes daily.",
+                "social engagement": "Engagement / viral trend mapping — Twitter trending topics, Instagram top posts by hashtag, YouTube trending. Use platform-native analytics.",
+                "hiring / talent": "LinkedIn hiring trends — use LinkedIn Talent Insights or scrape job posting counts. Reflects strategy more than press releases.",
+                "funding": "Funding deals — track Crunchbase, Tracxn, Entrackr (India), YourStory. Press-release lag ~1-2 weeks.",
+                "stock / market": "Stock movement — pull from a market data API (Alpha Vantage, Yahoo Finance, NSE/BSE). This engine does not fetch live quotes.",
+                "growth": "Market growth figures — check company earnings decks, DRHP for IPO-bound firms, industry reports (RedSeer, Bain, BCG).",
+                "infrastructure": "Infrastructure announcements — track hyperscaler blogs (AWS, Azure, Google Cloud), Nvidia keynotes, and SemiAnalysis for leaked specs.",
+            }
+            for aspect in aspects_requested:
+                if aspect in live_notes:
+                    out += f"- **{aspect.title()}:** {live_notes[aspect]}\n"
+            out += "\n"
+
+        if wants_doc:
+            out += "---\n\n### 📄 Deliverable format notes\n\n"
+            out += "You asked for the output as a doc / PDF / PPT / Excel. This engine returns text/Markdown — you can:\n\n"
+            out += "- Copy the Markdown into a tool like Pandoc, Typora, or Notion to export as PDF / DOCX.\n"
+            out += "- For a slide deck: ask NAGRO to \"make slides for \\<topic\\>\" and paste the output into Google Slides or PowerPoint.\n"
+            out += "- For Excel: ask for the data as a CSV/table — NAGRO can produce one, and Excel/Sheets will import it directly.\n\n"
+
+        out += f"---\n*Ask about any entity above in more depth, or request a specific angle (e.g. just stock movement, just hiring, just social sentiment).*"
+        return out
 
     def _try_direct_answer(self, prompt: str) -> str | None:
         """Answer common factual questions directly without dumping full articles."""
@@ -2138,12 +2523,21 @@ class NAGROBrain:
     def _extract_topic(self, prompt: str) -> str:
         topic = re.sub(
             r'^(what is|what are|how does|how do|how to|why|explain|describe|'
-            r'tell me about|define|research|conduct|provide|give me|discuss|'
-            r'analyze|examine|compare|latest|news about)\s+',
+            r'tell me about|define|research|conduct|provide|give me the|give me|'
+            r'give me a|give me an|discuss|please|can you|could you|'
+            r'analyze|analyse|examine|investigate|compare|latest|news about|'
+            r'intelligence report on|report on|study|evaluate|assess|review|'
+            r'write about|write an?)\s+',
             '', prompt, flags=re.IGNORECASE).strip()
-        topic = re.sub(r'^(a|an|the|detailed|exhaustive|comprehensive)\s+',
+        topic = re.sub(r'^(a|an|the|detailed|exhaustive|comprehensive|recent|latest)\s+',
                        '', topic, flags=re.IGNORECASE).strip()
-        return topic[:150] if topic else prompt[:150]
+        # For long queries, cut at the first comma or 'including' / 'such as' etc.
+        topic = re.split(r'\b(?:including|such as|like|,|from)\b', topic, maxsplit=1, flags=re.I)[0].strip()
+        # Max 10 words for the title
+        words = topic.split()
+        if len(words) > 10:
+            topic = " ".join(words[:10])
+        return topic[:120] if topic else prompt[:120]
 
     # ── Greeting / System ──
 
