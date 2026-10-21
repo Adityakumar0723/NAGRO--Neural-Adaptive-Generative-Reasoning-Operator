@@ -104,6 +104,90 @@ _k(["large language model", "llm", "gpt", "chatgpt", "claude", "llama", "languag
     "**Limitations:** Hallucinations (generating false info), training data cutoff, no real-time knowledge without tools, context window limits."
 )
 
+_k(["india us", "india us relations", "india us trade", "india america", "us india",
+    "india america trade", "india united states", "modi biden", "modi trump",
+    "india us tech partnership"],
+    "**India-US Trade & Tech Partnership**\n\n"
+    "- **Trade volume:** US is India's largest trading partner, bilateral trade crossed $190B in FY24 (goods + services).\n"
+    "- **iCET (initiative on Critical and Emerging Technology):** Launched Jan 2023 — covers semiconductors, AI, quantum, space, defense, 6G.\n"
+    "- **Semiconductors:** Micron investing ~$2.75B in Sanand (Gujarat) OSAT facility. Applied Materials opening engineering center in Bengaluru. GlobalFoundries exploring Indian ops.\n"
+    "- **AI collaboration:** US-India AI Initiative under iCET; Nvidia-Reliance partnership announced 2024 for AI cloud. Google building AI research hub in Bengaluru.\n"
+    "- **Defense:** GE-HAL deal for F414 jet engines (made-in-India for Tejas Mk2). Predator drone deal ~$3.5B signed 2024.\n"
+    "- **Space:** NASA-ISRO NISAR satellite mission (Earth observation). India signed Artemis Accords (2023).\n"
+    "- **People:** 5.4M+ Indian Americans; H-1B visa holders ~70% Indian; Indian-origin CEOs at Google, Microsoft, Adobe, Palo Alto Networks, Chanel.\n"
+    "- **Tariffs & frictions:** Reciprocal tariff disputes (Harley, almonds, dairy); IPR concerns; data localization pushback."
+)
+
+_k(["india japan", "india japan relations", "india japan trade", "india japan tech",
+    "india japan partnership", "qsd japan india"],
+    "**India-Japan Trade & Tech Partnership**\n\n"
+    "- **Strategic partnership:** Elevated to 'Special Strategic & Global Partnership' (2014). Annual summit tradition.\n"
+    "- **Investment:** Japan is 5th largest FDI source into India (~$40B cumulative). SoftBank, Suzuki, Honda, Toyota are major investors.\n"
+    "- **Bullet train:** Mumbai-Ahmedabad high-speed rail using Shinkansen tech (JICA-funded, ~$17B).\n"
+    "- **Semiconductors:** Renesas and others exploring Indian partnerships. Rapidus (Japan's advanced-node foundry) in talks with Indian firms.\n"
+    "- **Supply chain resilience:** Part of Supply Chain Resilience Initiative (SCRI) with Australia — reducing China dependency.\n"
+    "- **Quad:** India + Japan + US + Australia security grouping.\n"
+    "- **Suzuki-Maruti:** 40%+ of Indian passenger car market via Suzuki-Maruti JV.\n"
+    "- **People-to-people:** Growing Indian population in Japan (~50K+); IT visa relaxations 2024.\n"
+    "- **Challenges:** Trade is modest (~$22B); language barrier; Japanese risk-aversion vs Indian startup ecosystem speed."
+)
+
+_k(["india uae", "india uae relations", "india uae trade", "india uae partnership",
+    "cepa uae", "india gulf"],
+    "**India-UAE Trade & Tech Partnership**\n\n"
+    "- **CEPA (Comprehensive Economic Partnership Agreement):** Signed Feb 2022, first major trade agreement in a decade. Aims to grow bilateral non-oil trade from $45B to $100B by 2030.\n"
+    "- **Bilateral trade:** ~$85B+ (FY24) — UAE is India's 3rd largest trade partner.\n"
+    "- **Workforce:** 3.5M+ Indian diaspora in UAE — largest expatriate group. Remittances $25B+/year.\n"
+    "- **IIT Delhi Abu Dhabi:** First IIT campus abroad (opened 2024).\n"
+    "- **Tech partnerships:** UAE's G42 (AI) partnering with Indian firms. Mubadala and ADIA major investors in Reliance Jio, Byju's, Lenskart, Flipkart.\n"
+    "- **Fintech:** UPI accepted in UAE (NPCI-NIPL deal). Rupee-dirham direct trade settlement being piloted.\n"
+    "- **Food security:** UAE invested in India's food-park corridors (Gujarat, UP). India is UAE's largest food supplier.\n"
+    "- **Oil & gas:** ADNOC supplies ~8% of India's crude; strategic reserves cooperation.\n"
+    "- **Jewel in crown:** Dubai-Mumbai air corridor is the world's busiest international route."
+)
+
+_k(["india europe", "india eu", "india europe trade", "india europe tech",
+    "india germany", "india france", "india uk trade"],
+    "**India-Europe Trade & Tech Partnership**\n\n"
+    "- **India-EU TTC (Trade and Technology Council):** Launched 2023 — covers 5G/6G, semiconductors, green tech, supply-chain resilience.\n"
+    "- **Trade volume:** ~€120B+ with EU (FY24). FTA negotiations ongoing (resumed 2022).\n"
+    "- **India-UK FTA:** Multiple rounds completed; final signing delayed by UK election cycles.\n"
+    "- **Germany:** Largest EU investor in India. Siemens, Bosch, SAP, Volkswagen have big operations. Semiconductor cooperation under German-Indian framework (2023).\n"
+    "- **France:** Rafale deal ($7.8B, 36 jets), Scorpene submarines, Airbus deals ~$70B (Air India, IndiGo). India-France civil nuclear partnership (Jaitapur).\n"
+    "- **Netherlands:** 3rd largest EU investor; ASML's role is critical for any Indian chip ambition.\n"
+    "- **AI:** EU AI Act creates regulatory alignment opportunities with India's Digital India Act.\n"
+    "- **Challenges:** EU Carbon Border Tax (CBAM) impacts Indian steel/aluminum exports; data-adequacy status pending.\n"
+    "- **Diaspora:** 2M+ in UK, 100K+ in Germany/Netherlands; Indian-origin UK PM Rishi Sunak (2022-24)."
+)
+
+_k(["india southeast asia", "india asean", "india singapore", "india vietnam",
+    "india indonesia", "act east policy"],
+    "**India-Southeast Asia Trade & Tech Partnership**\n\n"
+    "- **Act East Policy:** India's flagship engagement framework with ASEAN (10 countries + Timor-Leste).\n"
+    "- **India-ASEAN trade:** ~$130B (FY24). India is ASEAN's 6th-largest trade partner.\n"
+    "- **Singapore:** India's largest trade partner in ASEAN (~$36B). CECA agreement since 2005. Major FDI source.\n"
+    "- **Vietnam:** Strategic partner — defense cooperation (BrahMos missile deal 2022), tech outsourcing competitor.\n"
+    "- **Indonesia:** $30B+ bilateral trade; palm oil, coal, nickel key imports; strategic maritime partnership.\n"
+    "- **Thailand/Malaysia:** Growing tech and tourism links; FTA with Thailand (2020).\n"
+    "- **Semiconductors:** Vietnam, Malaysia, Thailand competing with India for assembly/packaging share of global semiconductor supply chain.\n"
+    "- **Fintech:** UPI linkage with Singapore PayNow (live), Thailand PromptPay (planned), Malaysia DuitNow.\n"
+    "- **Challenges:** RCEP exit (2019) limits market access; ASEAN FTA review ongoing to reduce trade deficit."
+)
+
+_k(["semiconductor india", "india semiconductor", "india chip", "india semiconductor mission",
+    "india semiconductor industry"],
+    "**India Semiconductor Industry**\n\n"
+    "- **India Semiconductor Mission (ISM):** $10B+ incentive scheme launched 2021. Covers fabs, OSAT, display, compound semi.\n"
+    "- **Tata Semiconductor:** Partnering with Taiwan's PSMC for India's first commercial fab in Dholera, Gujarat (~$11B, 28nm/40nm mature nodes). Ground-breaking 2024.\n"
+    "- **Tata OSAT:** Assembly/test facility in Jagiroad, Assam.\n"
+    "- **Micron:** $2.75B ATMP (assembly, test, mark, pack) facility in Sanand, Gujarat.\n"
+    "- **CG Power + Renesas:** OSAT in Sanand (compound JV).\n"
+    "- **Kaynes Semicon:** OSAT in Sanand.\n"
+    "- **Design strength:** 20%+ of global semi engineers are India-based. Qualcomm, Nvidia, AMD, Intel all have major Indian R&D centers.\n"
+    "- **Gaps:** No cutting-edge nodes (sub-28nm) planned yet; equipment, chemicals, wafer supply fully import-dependent.\n"
+    "- **Geopolitics:** India benefits from US-China decoupling; iCET framework ties it to US supply chain."
+)
+
 _k(["ipl", "indian premier league", "virat kohli", "kohli", "rohit sharma",
     "ms dhoni", "jasprit bumrah", "hardik pandya", "india cricket", "team india",
     "ipl franchise", "csk", "mi", "rcb", "kkr", "srh", "dc", "pbks", "rr", "gt", "lsg",
@@ -1682,19 +1766,51 @@ class NAGROBrain:
             "zomato", "swiggy", "zepto", "boat", "shaadi.com", "zoho", "razorpay",
             "lenskart", "openai", "anthropic", "nvidia", "chatgpt", "claude",
             "ai economics", "training cost", "inference", "api pricing",
+            # India-related partnerships (match the KB entries added)
+            "india us", "india-us", "india america", "india japan", "india-japan",
+            "india uae", "india-uae", "india europe", "india-europe",
+            "india southeast asia", "india asean", "semiconductor india",
+            "india semiconductor", "india trade", "cepa", "act east",
+            # Topic-level keywords
+            "quantum computing", "blockchain", "semiconductor",
         ]
         for kw in extra_keywords:
             if kw in p:
                 entities.add(kw.title())
+
+        # Detect pair patterns like "India-US", "India US", "India-Japan"
+        pair_patterns = re.findall(
+            r"\b(india|us|usa|america|japan|uae|china|europe|eu|uk|britain|germany|france|russia|singapore|vietnam|asean)[-\s]+"
+            r"(india|us|usa|america|japan|uae|china|europe|eu|uk|britain|germany|france|russia|singapore|vietnam|asean)\b",
+            p, re.I
+        )
+        for a, b_country in pair_patterns:
+            pair = f"{a.lower().replace('usa','us').replace('america','us')} {b_country.lower().replace('usa','us').replace('america','us')}"
+            entities.add(pair.title())
+
+        # Co-mention detection: if India + a partner country both appear anywhere in the query,
+        # add the partnership entity (even if they're not adjacent in text).
+        if re.search(r"\bindia\w*\b", p):
+            partners = {
+                "india us": [r"\b(us|usa|america|united states)\b"],
+                "india japan": [r"\bjapan\w*\b"],
+                "india uae": [r"\b(uae|emirates|dubai|abu dhabi)\b"],
+                "india europe": [r"\b(europe\w*|eu|germany|france|uk|britain|netherlands)\b"],
+                "india southeast asia": [r"\b(southeast asia|asean|singapore|vietnam|indonesia|malaysia|thailand)\b"],
+                "india semiconductor": [r"\b(semiconductor\w*|chip\w*|fab\b|osat)\b"],
+            }
+            for ent_key, pats in partners.items():
+                if any(re.search(pat, p) for pat in pats):
+                    entities.add(ent_key.title())
 
         if len(entities) < 2:
             return None  # Not a multi-entity query
 
         # Pull KB content for each entity — STRICT matching only
         from nagro.core.nagro_brain import KNOWLEDGE
-        # Skip entities that are too short or too generic
-        skip_entities = {"the", "a", "an", "ai", "ml", "us", "uk", "eu", "api",
-                          "ipo", "ceo", "cfo", "gpu", "cpu", "indian", "india",
+        # Skip entities that are too short or too generic (but not country/tech names)
+        skip_entities = {"the", "a", "an", "ml", "api",
+                          "ipo", "ceo", "cfo", "gpu", "cpu",
                           "american", "chinese", "and", "or", "but"}
 
         sections = []  # list of (display_name, kb_text, canonical_key)
@@ -1725,8 +1841,10 @@ class NAGROBrain:
             covered_canonical.add(canonical)
             sections.append((canonical.title(), kb_entry[1]))
 
+        # If no KB matched, build a structured scaffold from the query itself
+        # (bulletproof — never return None for long queries)
         if not sections:
-            return None
+            return self._build_scaffold_report(prompt, entities, aspects_requested=None)
 
         # Detect what "aspects" the user asked about — social sentiment, hiring, etc.
         aspects_requested = []
@@ -2538,7 +2656,8 @@ class NAGROBrain:
             r'give me a|give me an|discuss|please|can you|could you|'
             r'analyze|analyse|examine|investigate|compare|latest|news about|'
             r'intelligence report on|report on|study|evaluate|assess|review|'
-            r'write about|write an?)\s+',
+            r'write about|write an?|find the latest news about|find news about|'
+            r'find the latest|find latest|find out about|find)\s+',
             '', prompt, flags=re.IGNORECASE).strip()
         topic = re.sub(r'^(a|an|the|detailed|exhaustive|comprehensive|recent|latest)\s+',
                        '', topic, flags=re.IGNORECASE).strip()
@@ -2748,6 +2867,117 @@ class NAGROBrain:
             f"**What this does:** {desc_parts}.\n\n"
             f"*Want me to expand any part or add more features? Just ask!*"
         )
+
+    def _build_scaffold_report(self, prompt: str, entities, aspects_requested=None) -> str:
+        """Bulletproof fallback — builds a structured analytical response for ANY
+        long query, even when no KB entity matches. Breaks the query into its
+        components and gives a framework the user can act on."""
+        p = prompt.lower()
+        topic = self._extract_topic(prompt)
+
+        # Entities not in KB — still mention them in the scaffold
+        ent_list = sorted(entities, key=len) if entities else []
+        display_entities = [e for e in ent_list if len(e) > 2][:8]
+
+        # Detect what aspects / angles are being asked
+        aspects = []
+        aspect_map = [
+            (["trade", "export", "import", "tariff", "deal"], "Trade & commerce"),
+            (["semiconductor", "chip", "fab", "osat"], "Semiconductors"),
+            (["ai collaboration", "ai partnership", "artificial intelligence"], "AI collaboration"),
+            (["startup", "ecosystem", "unicorn"], "Startup ecosystem"),
+            (["sentiment", "reddit", "twitter", "social"], "Social sentiment"),
+            (["linkedin", "hiring", "jobs"], "Hiring / talent"),
+            (["geopolit", "diplomacy", "foreign policy"], "Geopolitics"),
+            (["market reaction", "stock", "share price"], "Market reaction"),
+            (["engagement", "viral", "trending"], "Engagement / virality"),
+            (["funding", "investment", "capital", "vc"], "Funding"),
+            (["defense", "military", "security"], "Defense"),
+            (["energy", "oil", "gas", "renewable"], "Energy"),
+            (["climate", "carbon", "emission"], "Climate"),
+            (["health", "pharma", "medicine"], "Health / pharma"),
+            (["education", "university", "research"], "Education / research"),
+        ]
+        for keywords, label in aspect_map:
+            if any(kw in p for kw in keywords):
+                aspects.append(label)
+
+        # Detect verbs — what the user wants done
+        wants_report = any(w in p for w in ["report", "analyze", "analysis",
+                                              "investigate", "examine", "study",
+                                              "news about", "find news", "latest news"])
+        wants_doc = any(w in p for w in ["doc", "pdf", "ppt", "presentation",
+                                           "excel", "spreadsheet"])
+
+        # Build the report
+        out = f"## 📊 Analytical Brief: {topic.title()}\n\n"
+        out += (f"This is NAGRO's structured analytical take on your question. "
+                f"The exact entities and the deeper per-item details are organized below. "
+                f"Items that need **live data** (news, social sentiment, stock movement, live hiring) "
+                f"are flagged — this engine does not fetch real-time feeds.\n\n")
+
+        if display_entities:
+            out += f"**Entities mentioned:** {', '.join(display_entities)}\n\n"
+        if aspects:
+            out += f"**Angles you asked about:** {', '.join(aspects)}\n\n"
+
+        out += "---\n\n### 🧭 How to read this question\n\n"
+        out += (f"The query is a **multi-dimensional research brief** — it asks for a "
+                f"cross-cut across several entities and several analytical angles. "
+                f"A proper answer stacks the entities (rows) against the angles (columns) "
+                f"and fills each cell from the right source.\n\n")
+
+        if aspects:
+            out += "### 🔎 Angles — what to look at for each\n\n"
+            angle_sources = {
+                "Trade & commerce": "Government trade data (Ministry of Commerce, UN Comtrade), bilateral agreements, FTA/CEPA texts.",
+                "Semiconductors": "SemiAnalysis, India Semiconductor Mission updates, company press releases (Tata, Micron, Foxconn, Vedanta).",
+                "AI collaboration": "iCET framework docs, company announcements, bilateral tech dialogues.",
+                "Startup ecosystem": "Tracxn, Crunchbase, Inc42, Entrackr, YourStory.",
+                "Social sentiment": "Brandwatch, Sprout Social, Meltwater — or Twitter/X and Reddit APIs directly.",
+                "Hiring / talent": "LinkedIn Talent Insights, Naukri reports, company careers pages.",
+                "Geopolitics": "MEA statements, think-tank analyses (ORF, Carnegie, IISS, Brookings), diplomatic communiqués.",
+                "Market reaction": "NSE/BSE live, Bloomberg, Reuters market updates, sector indices.",
+                "Engagement / virality": "Twitter trending, Instagram top-posts by hashtag, YouTube trending.",
+                "Funding": "Crunchbase, Tracxn, DealStreetAsia; press releases for term sheets.",
+                "Defense": "SIPRI arms-transfers database, Ministry of Defence announcements, Jane's Defence.",
+                "Energy": "IEA reports, PPAC data (India), company earnings reports.",
+                "Climate": "UNFCCC NDCs, CSE India, IPCC reports.",
+                "Health / pharma": "WHO data, Pharmexcil for India exports, ICMR/CDSCO updates.",
+                "Education / research": "QS/THE rankings, NIRF, bibliometric databases (Scopus, Web of Science).",
+            }
+            for a in aspects:
+                if a in angle_sources:
+                    out += f"- **{a}:** {angle_sources[a]}\n"
+            out += "\n"
+
+        if display_entities:
+            out += "### 📋 Per-entity framework\n\n"
+            out += ("For each named entity, the structured answer should cover:\n\n"
+                    "- **Current state** — what is active right now (deals signed, agreements running, projects underway).\n"
+                    "- **Trajectory** — direction over the last 12-24 months (expanding, contracting, pivoting).\n"
+                    "- **Key signals** — official announcements, press mentions, diplomatic visits.\n"
+                    "- **Blockers** — frictions, tariff disputes, political headwinds.\n"
+                    "- **Outlook** — what to watch over the next 6-12 months.\n\n")
+
+        out += "### ⚠️ What this engine CAN'T give you live\n\n"
+        out += ("- Real-time news headlines (NAGRO has no live news feed).\n"
+                "- Live social-media sentiment / viral tweets.\n"
+                "- Current stock prices / live market reactions.\n"
+                "- Real-time LinkedIn hiring numbers.\n\n"
+                "For those, pair this analytical structure with a live-data source (news API, "
+                "social listening tool, market data API). NAGRO's role is the **framework and the "
+                "structured context**; the live numbers come from feeds.\n\n")
+
+        if wants_doc:
+            out += "### 📄 Deliverable notes\n\n"
+            out += ("You mentioned a doc / PDF / PPT / Excel. NAGRO returns Markdown — paste it into "
+                    "Pandoc, Typora, Notion, or Google Docs to export. For slides: ask for \"slides on "
+                    "\\<topic\\>\" and paste into PowerPoint / Google Slides.\n\n")
+
+        out += (f"---\n*Ask me about any specific entity (e.g. just India-US, just semiconductors) "
+                f"and I'll go much deeper — the brain has detailed KB on individual topics.*")
+        return out
 
     def _generate_dynamic_app(self, p: str, core: str, force: bool = False) -> str | None:
         """Universal dynamic app generator — builds working code for ANY query.
