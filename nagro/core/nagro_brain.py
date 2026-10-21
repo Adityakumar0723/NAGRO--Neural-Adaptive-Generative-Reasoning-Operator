@@ -2712,6 +2712,24 @@ class NAGROBrain:
             '', p, flags=re.I
         ).strip()
 
+        # ── HIGHEST PRIORITY: specific app builders catch exact-type requests ──
+        # (mood/expense/habit/recipe/workout/flashcard/shopping/weather/music/
+        #  markdown/kanban/pomodoro/notes/journal/contacts/dashboard/portfolio/
+        #  netflix) — handled inside _generate_dynamic_app before any
+        #  template lookup, so each gets a UNIQUE design, not a shared template.
+        specific_markers = ["mood", "expense", "budget", "habit", "recipe",
+                             "cookbook", "workout", "exercise", "gym", "fitness",
+                             "flashcard", "flash card", "shopping list",
+                             "weather", "music player", "markdown",
+                             "kanban", "task board", "trello", "pomodoro",
+                             "notes app", "diary", "journal", "contact list",
+                             "contact book", "contact app", "contacts app",
+                             "dashboard", "portfolio", "netflix", "streaming"]
+        if any(m in p for m in specific_markers):
+            specific = self._generate_dynamic_app(p, core)
+            if specific and "```" in specific:
+                return specific
+
         if any(k in p for k in ["course", "tutorial", "syllabus", "curriculum",
                                  "roadmap", "learning path", "sikhao", "seekhna",
                                  "complete guide", "full guide", "step by step learn"]):
@@ -2719,8 +2737,8 @@ class NAGROBrain:
 
         if any(k in p for k in ["project", "mini project",
                                  "full stack", "web app", "desktop app", "cli app",
-                                 "chat app", "blog app", "portfolio",
-                                 "e-commerce", "ecommerce", "landing page"]):
+                                 "chat app", "blog app",
+                                 "e-commerce", "ecommerce"]):
             return self._generate_project(prompt)
 
         # If request sounds like an interactive app, try HTML first
@@ -3018,7 +3036,45 @@ class NAGROBrain:
                                          "survey", "feedback"])
         is_draw = any(w in p for w in ["draw", "paint", "canvas", "sketch", "whiteboard", "doodle"])
 
-        # Build the app based on intent
+        # ── SPECIFIC APP BUILDERS — each has its OWN unique design ──
+        if "mood" in p and ("track" in p or "log" in p or "journal" in p or "diary" in p or "app" in p):
+            return self._build_mood_tracker(title, safe_title, topic)
+        if "expense" in p or "budget" in p or "spending" in p or "finance tracker" in p:
+            return self._build_expense_tracker(title, safe_title, topic)
+        if "habit" in p and ("track" in p or "log" in p or "app" in p):
+            return self._build_habit_tracker(title, safe_title, topic)
+        if "recipe" in p or "cookbook" in p or "cooking app" in p:
+            return self._build_recipe_app(title, safe_title, topic)
+        if "workout" in p or ("exercise" in p and "track" in p) or "gym" in p or "fitness" in p:
+            return self._build_workout_app(title, safe_title, topic)
+        if "flashcard" in p or "flash card" in p or "study card" in p:
+            return self._build_flashcard_app(title, safe_title, topic)
+        if "shopping" in p and "list" in p:
+            return self._build_shopping_list(title, safe_title, topic)
+        if "weather" in p:
+            return self._build_weather_app(title, safe_title, topic)
+        if "music" in p and ("player" in p or "app" in p):
+            return self._build_music_player(title, safe_title, topic)
+        if "markdown" in p or "md editor" in p:
+            return self._build_markdown_editor(title, safe_title, topic)
+        if "kanban" in p or "task board" in p or "trello" in p:
+            return self._build_kanban_app(title, safe_title, topic)
+        if "pomodoro" in p:
+            return self._build_pomodoro_app(title, safe_title, topic)
+        if "notes" in p and "app" in p:
+            return self._build_notes_app(title, safe_title, topic)
+        if "diary" in p or "journal" in p:
+            return self._build_journal_app(title, safe_title, topic)
+        if "contact" in p and ("list" in p or "book" in p or "app" in p):
+            return self._build_contacts_app(title, safe_title, topic)
+        if "dashboard" in p:
+            return self._build_dashboard_app(title, safe_title, topic)
+        if "portfolio" in p:
+            return self._build_portfolio_app(title, safe_title, topic)
+        if "netflix" in p or "streaming" in p:
+            return self._build_netflix_clone(title, safe_title, topic)
+
+        # ── GENERAL CATEGORY DISPATCH ──
         if is_game:
             return self._build_game_app(title, safe_title, topic, p)
         if is_draw:
@@ -3228,6 +3284,361 @@ class NAGROBrain:
                 "<div style=\"text-align:center;margin-top:20px\"><button onclick=\"alert('Hello from '+document.title)\">Get Started</button></div>")
         script = "// static showcase"
         return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — modern showcase page with feature cards, gradient title, interactive button. Click Preview!"
+
+    def _build_mood_tracker(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">How are you feeling today?</p>"
+                "<div style=\"display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px\">"
+                "<button class=\"mood-btn\" data-m=\"5\" data-l=\"Great\" style=\"font-size:1.6rem;padding:14px;background:#22c55e\">😄</button>"
+                "<button class=\"mood-btn\" data-m=\"4\" data-l=\"Good\" style=\"font-size:1.6rem;padding:14px;background:#84cc16\">🙂</button>"
+                "<button class=\"mood-btn\" data-m=\"3\" data-l=\"Okay\" style=\"font-size:1.6rem;padding:14px;background:#f59e0b\">😐</button>"
+                "<button class=\"mood-btn\" data-m=\"2\" data-l=\"Low\" style=\"font-size:1.6rem;padding:14px;background:#f97316\">🙁</button>"
+                "<button class=\"mood-btn\" data-m=\"1\" data-l=\"Bad\" style=\"font-size:1.6rem;padding:14px;background:#ef4444\">😢</button></div>"
+                "<textarea id=\"note\" placeholder=\"Note (optional) — what's going on?\" rows=\"2\"></textarea>"
+                "<div id=\"recent\" style=\"margin-top:16px\"></div>"
+                "<div class=\"stats\" id=\"stats\"></div>")
+        script = ("let log=JSON.parse(localStorage.getItem('mood')||'[]');"
+                  "function save(){localStorage.setItem('mood',JSON.stringify(log));render()}"
+                  "document.querySelectorAll('.mood-btn').forEach(b=>b.onclick=()=>{"
+                  "const n=document.getElementById('note').value.trim();"
+                  "log.unshift({m:+b.dataset.m,l:b.dataset.l,n,d:new Date().toLocaleString()});"
+                  "document.getElementById('note').value='';save()});"
+                  "function render(){const r=document.getElementById('recent');"
+                  "r.innerHTML='<h3 style=\"margin:12px 0 8px;color:#94a3b8;font-size:14px\">Recent moods</h3>'+log.slice(0,8).map(e=>"
+                  "`<div style=\"padding:8px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center\"><div><b style=\"color:#f59e0b\">${e.l}</b>${e.n?' — '+e.n:''}</div><div style=\"font-size:11px;color:#64748b\">${e.d}</div></div>`).join('');"
+                  "if(log.length){const avg=(log.reduce((s,e)=>s+e.m,0)/log.length).toFixed(1);"
+                  "document.getElementById('stats').textContent=`Avg mood: ${avg}/5 over ${log.length} entries`}}render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — 5-point emoji mood picker with notes, saves to localStorage, shows recent moods + running average. Click Preview!"
+
+    def _build_expense_tracker(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Track where your money goes</p>"
+                "<div class=\"row\"><input id=\"amt\" type=\"number\" placeholder=\"Amount\" style=\"flex:1\">"
+                "<select id=\"cat\" style=\"width:140px;margin-bottom:0\"><option>Food</option><option>Transport</option><option>Rent</option><option>Shopping</option><option>Bills</option><option>Fun</option><option>Other</option></select></div>"
+                "<input id=\"note\" placeholder=\"Note (optional)\">"
+                "<button onclick=\"addExp()\" style=\"width:100%\">Add Expense</button>"
+                "<div style=\"margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px\">"
+                "<div style=\"padding:14px;background:#0f172a;border:1px solid #334155;border-radius:10px;text-align:center\"><div style=\"font-size:12px;color:#94a3b8\">Today</div><div id=\"today\" style=\"font-size:1.5rem;font-weight:700;color:#f59e0b\">0</div></div>"
+                "<div style=\"padding:14px;background:#0f172a;border:1px solid #334155;border-radius:10px;text-align:center\"><div style=\"font-size:12px;color:#94a3b8\">Total</div><div id=\"total\" style=\"font-size:1.5rem;font-weight:700;color:#ef4444\">0</div></div>"
+                "</div>"
+                "<div id=\"catBreakdown\" style=\"margin-top:16px\"></div>"
+                "<div id=\"list\" style=\"margin-top:12px\"></div>")
+        script = ("let exps=JSON.parse(localStorage.getItem('exps')||'[]');"
+                  "function addExp(){const a=parseFloat(document.getElementById('amt').value);"
+                  "if(!a||a<=0)return;exps.unshift({a,c:document.getElementById('cat').value,n:document.getElementById('note').value.trim(),d:Date.now()});"
+                  "document.getElementById('amt').value='';document.getElementById('note').value='';save()}"
+                  "function del(i){exps.splice(i,1);save()}"
+                  "function save(){localStorage.setItem('exps',JSON.stringify(exps));render()}"
+                  "function render(){const t=new Date().toDateString();const today=exps.filter(e=>new Date(e.d).toDateString()===t).reduce((s,e)=>s+e.a,0);"
+                  "const total=exps.reduce((s,e)=>s+e.a,0);"
+                  "document.getElementById('today').textContent='₹'+today.toFixed(0);"
+                  "document.getElementById('total').textContent='₹'+total.toFixed(0);"
+                  "const byCat={};exps.forEach(e=>byCat[e.c]=(byCat[e.c]||0)+e.a);"
+                  "document.getElementById('catBreakdown').innerHTML='<h3 style=\"margin:8px 0;font-size:14px;color:#94a3b8\">By category</h3>'+Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`<div style=\"display:flex;justify-content:space-between;padding:6px 10px;background:#0f172a;border-radius:6px;margin-bottom:4px\"><span>${c}</span><b style=\"color:#f59e0b\">₹${v.toFixed(0)}</b></div>`).join('');"
+                  "document.getElementById('list').innerHTML='<h3 style=\"margin:12px 0 8px;font-size:14px;color:#94a3b8\">Recent</h3>'+exps.slice(0,10).map((e,i)=>`<div style=\"display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;margin-bottom:4px\"><div><b style=\"color:#f59e0b\">₹${e.a}</b> <span style=\"color:#94a3b8;font-size:13px\">${e.c}</span>${e.n?' · '+e.n:''}</div><button onclick=\"del(${i})\" style=\"padding:4px 10px;background:#ef4444;font-size:12px\">×</button></div>`).join('')}"
+                  "render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — amount + category dropdown + note, calculates today's spending, total, and per-category breakdown. localStorage persistence."
+
+    def _build_habit_tracker(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Build streaks, break old patterns</p>"
+                "<div class=\"row\"><input id=\"inp\" placeholder=\"New habit (e.g. Meditate)\" style=\"flex:1\" onkeydown=\"if(event.key==='Enter')add()\">"
+                "<button onclick=\"add()\">Add</button></div>"
+                "<div id=\"habits\"></div>")
+        script = ("let habits=JSON.parse(localStorage.getItem('habits')||'[]');"
+                  "function today(){return new Date().toISOString().slice(0,10)}"
+                  "function add(){const t=document.getElementById('inp').value.trim();if(!t)return;"
+                  "habits.push({name:t,done:[]});document.getElementById('inp').value='';save()}"
+                  "function toggle(i){const t=today();const d=habits[i].done;const idx=d.indexOf(t);"
+                  "if(idx>=0)d.splice(idx,1);else d.push(t);save()}"
+                  "function del(i){habits.splice(i,1);save()}"
+                  "function streak(d){d=d.slice().sort().reverse();let s=0;let cur=new Date();for(const day of d){const diff=(cur-new Date(day))/(86400000);if(diff<1.5){s++;cur=new Date(day)}else break}return s}"
+                  "function save(){localStorage.setItem('habits',JSON.stringify(habits));render()}"
+                  "function render(){const t=today();document.getElementById('habits').innerHTML=habits.map((h,i)=>{"
+                  "const checked=h.done.includes(t);const s=streak(h.done);"
+                  "return `<div style=\"padding:14px;background:#0f172a;border:1px solid ${checked?'#22c55e':'#334155'};border-radius:10px;margin-bottom:8px;display:flex;align-items:center;gap:12px\">"
+                  "<input type=\"checkbox\" ${checked?'checked':''} onchange=\"toggle(${i})\" style=\"width:22px;height:22px;cursor:pointer;margin:0\">"
+                  "<div style=\"flex:1\"><div style=\"font-weight:600;${checked?'color:#22c55e':''}\">${h.name}</div>"
+                  "<div style=\"font-size:12px;color:#f59e0b;margin-top:2px\">🔥 ${s} day streak · ${h.done.length} total</div></div>"
+                  "<button onclick=\"del(${i})\" style=\"padding:4px 10px;background:#ef4444;font-size:12px\">×</button></div>`}).join('')||'<p style=\"text-align:center;color:#64748b;margin-top:20px\">Add your first habit above</p>'}"
+                  "render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — add habits, check off daily, auto-computes streaks and total completions. Streak counter in flame emoji. Persists in localStorage."
+
+    def _build_recipe_app(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Save and view recipes</p>"
+                "<button onclick=\"newR()\" style=\"width:100%;margin-bottom:12px\">+ Add Recipe</button>"
+                "<div id=\"recipes\"></div>")
+        script = ("let recipes=JSON.parse(localStorage.getItem('rec')||'[]');"
+                  "function save(){localStorage.setItem('rec',JSON.stringify(recipes));render()}"
+                  "function newR(){const name=prompt('Recipe name?');if(!name)return;"
+                  "const ing=prompt('Ingredients (comma separated)')||'';"
+                  "const steps=prompt('Steps (separate with |)')||'';"
+                  "recipes.push({name,ing:ing.split(',').map(s=>s.trim()).filter(Boolean),steps:steps.split('|').map(s=>s.trim()).filter(Boolean)});save()}"
+                  "function del(i){if(confirm('Delete?')){recipes.splice(i,1);save()}}"
+                  "function render(){document.getElementById('recipes').innerHTML=recipes.map((r,i)=>"
+                  "`<div style=\"background:#0f172a;border:1px solid #334155;border-radius:12px;padding:16px;margin-bottom:10px\">"
+                  "<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:10px\"><h3 style=\"color:#f59e0b\">${r.name}</h3><button onclick=\"del(${i})\" style=\"padding:4px 10px;background:#ef4444;font-size:12px\">×</button></div>"
+                  "<div style=\"font-size:13px;color:#94a3b8;margin-bottom:6px\">🥕 Ingredients:</div>"
+                  "<ul style=\"margin-left:20px;color:#e2e8f0;font-size:14px;margin-bottom:12px\">${r.ing.map(x=>'<li>'+x+'</li>').join('')}</ul>"
+                  "<div style=\"font-size:13px;color:#94a3b8;margin-bottom:6px\">🧑‍🍳 Steps:</div>"
+                  "<ol style=\"margin-left:20px;color:#e2e8f0;font-size:14px;line-height:1.6\">${r.steps.map(x=>'<li>'+x+'</li>').join('')}</ol></div>`).join('')||'<p style=\"text-align:center;color:#64748b;padding:20px\">No recipes yet. Click + Add Recipe above.</p>'}"
+                  "render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — recipe cards with ingredients list and numbered steps. Add via prompt, saved in localStorage."
+
+    def _build_workout_app(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Log sets, reps, and progress</p>"
+                "<div class=\"row\"><input id=\"ex\" placeholder=\"Exercise (e.g. Bench Press)\" style=\"flex:1\"></div>"
+                "<div class=\"row\"><input id=\"reps\" type=\"number\" placeholder=\"Reps\" style=\"flex:1\"><input id=\"wt\" type=\"number\" placeholder=\"Weight (kg)\" style=\"flex:1\"></div>"
+                "<button onclick=\"logSet()\" style=\"width:100%\">Log Set</button>"
+                "<div style=\"margin-top:16px\" id=\"today\"></div>"
+                "<div style=\"margin-top:12px\" id=\"history\"></div>")
+        script = ("let sets=JSON.parse(localStorage.getItem('workout')||'[]');"
+                  "function logSet(){const e=document.getElementById('ex').value.trim();const r=+document.getElementById('reps').value;const w=+document.getElementById('wt').value;"
+                  "if(!e||!r)return;sets.unshift({e,r,w,d:Date.now()});document.getElementById('reps').value='';document.getElementById('wt').value='';save()}"
+                  "function save(){localStorage.setItem('workout',JSON.stringify(sets));render()}"
+                  "function render(){const t=new Date().toDateString();const today=sets.filter(s=>new Date(s.d).toDateString()===t);"
+                  "const volume=today.reduce((s,x)=>s+(x.r*(x.w||0)),0);"
+                  "document.getElementById('today').innerHTML=`<div style=\"padding:14px;background:#0f172a;border:1px solid #22c55e;border-radius:10px;text-align:center\"><div style=\"font-size:12px;color:#94a3b8\">Today's volume</div><div style=\"font-size:1.8rem;font-weight:700;color:#22c55e\">${volume.toFixed(0)} kg</div><div style=\"font-size:12px;color:#64748b\">${today.length} sets</div></div>`;"
+                  "document.getElementById('history').innerHTML='<h3 style=\"margin:12px 0 8px;font-size:14px;color:#94a3b8\">Recent sets</h3>'+sets.slice(0,15).map(s=>`<div style=\"padding:8px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;margin-bottom:4px;display:flex;justify-content:space-between\"><div><b>${s.e}</b> — ${s.r}×${s.w||'bw'}${s.w?'kg':''}</div><div style=\"font-size:11px;color:#64748b\">${new Date(s.d).toLocaleDateString()}</div></div>`).join('')}"
+                  "render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — log exercise + reps + weight, computes today's total volume (kg), keeps a session history. Perfect gym log."
+
+    def _build_flashcard_app(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Click card to flip, swipe to next</p>"
+                "<div class=\"row\"><input id=\"q\" placeholder=\"Question / front\" style=\"flex:1\"><input id=\"a\" placeholder=\"Answer / back\" style=\"flex:1\"></div>"
+                "<button onclick=\"addCard()\" style=\"width:100%\">Add Card</button>"
+                "<div id=\"stage\" style=\"margin-top:16px;perspective:1000px;height:200px\">"
+                "<div id=\"card\" onclick=\"flip()\" style=\"width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform .6s;cursor:pointer\">"
+                "<div style=\"position:absolute;inset:0;background:#1e293b;border:2px solid #f59e0b;border-radius:12px;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;font-size:1.3rem;backface-visibility:hidden\" id=\"front\">Front</div>"
+                "<div style=\"position:absolute;inset:0;background:#1e293b;border:2px solid #22c55e;border-radius:12px;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;font-size:1.3rem;backface-visibility:hidden;transform:rotateY(180deg)\" id=\"back\">Back</div>"
+                "</div></div>"
+                "<div class=\"row\" style=\"margin-top:16px\"><button class=\"sec\" onclick=\"prev()\" style=\"flex:1\">← Prev</button><button class=\"sec\" onclick=\"next()\" style=\"flex:1\">Next →</button></div>"
+                "<div class=\"stats\" id=\"stats\"></div>")
+        script = ("let cards=JSON.parse(localStorage.getItem('cards')||'[]');let i=0;let flipped=false;"
+                  "function save(){localStorage.setItem('cards',JSON.stringify(cards));render()}"
+                  "function addCard(){const q=document.getElementById('q').value.trim();const a=document.getElementById('a').value.trim();if(!q||!a)return;cards.push({q,a});document.getElementById('q').value='';document.getElementById('a').value='';save()}"
+                  "function flip(){flipped=!flipped;document.getElementById('card').style.transform=flipped?'rotateY(180deg)':''}"
+                  "function next(){if(!cards.length)return;i=(i+1)%cards.length;flipped=false;render()}"
+                  "function prev(){if(!cards.length)return;i=(i-1+cards.length)%cards.length;flipped=false;render()}"
+                  "function render(){if(!cards.length){document.getElementById('front').textContent='Add cards above';document.getElementById('back').textContent='Then study!';document.getElementById('stats').textContent='0 cards';return}"
+                  "document.getElementById('front').textContent=cards[i].q;document.getElementById('back').textContent=cards[i].a;document.getElementById('card').style.transform=flipped?'rotateY(180deg)':'';document.getElementById('stats').textContent=`Card ${i+1} of ${cards.length}`}"
+                  "render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — add Q/A cards, click to flip (3D animation), prev/next navigation. Study tool with persistence."
+
+    def _build_shopping_list(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Add, check off, buy</p>"
+                "<div class=\"row\"><input id=\"item\" placeholder=\"Item name\" style=\"flex:2\" onkeydown=\"if(event.key==='Enter')add()\"><input id=\"qty\" type=\"number\" placeholder=\"Qty\" value=\"1\" style=\"flex:1\"></div>"
+                "<button onclick=\"add()\" style=\"width:100%\">Add Item</button>"
+                "<div id=\"list\" style=\"margin-top:16px\"></div>"
+                "<div class=\"stats\" id=\"stats\"></div>")
+        script = ("let items=JSON.parse(localStorage.getItem('shop')||'[]');"
+                  "function add(){const n=document.getElementById('item').value.trim();const q=+document.getElementById('qty').value||1;if(!n)return;items.push({n,q,done:false});document.getElementById('item').value='';document.getElementById('qty').value='1';save()}"
+                  "function toggle(i){items[i].done=!items[i].done;save()}"
+                  "function del(i){items.splice(i,1);save()}"
+                  "function clearDone(){items=items.filter(x=>!x.done);save()}"
+                  "function save(){localStorage.setItem('shop',JSON.stringify(items));render()}"
+                  "function render(){document.getElementById('list').innerHTML=items.map((it,i)=>"
+                  "`<div style=\"display:flex;align-items:center;gap:10px;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:8px;margin-bottom:6px\">"
+                  "<input type=\"checkbox\" ${it.done?'checked':''} onchange=\"toggle(${i})\" style=\"width:20px;height:20px;margin:0\">"
+                  "<div style=\"flex:1;${it.done?'text-decoration:line-through;opacity:.5':''}\">${it.n} <span style=\"color:#64748b;font-size:12px\">×${it.q}</span></div>"
+                  "<button onclick=\"del(${i})\" style=\"padding:4px 10px;background:#ef4444;font-size:12px\">×</button></div>`).join('');"
+                  "const done=items.filter(x=>x.done).length;document.getElementById('stats').innerHTML=`${done}/${items.length} done ${done?'<button class=\"sec\" style=\"margin-left:12px;padding:4px 12px;font-size:12px\" onclick=\"clearDone()\">Clear bought</button>':''}`}"
+                  "render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — item + quantity, check off bought items, clear completed. localStorage-backed."
+
+    def _build_weather_app(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Enter a city to see weather</p>"
+                "<div class=\"row\"><input id=\"city\" placeholder=\"City name\" style=\"flex:1\" onkeydown=\"if(event.key==='Enter')fetch_()\"><button onclick=\"fetch_()\">Search</button></div>"
+                "<div id=\"out\" style=\"text-align:center;margin-top:20px\"></div>")
+        script = ("const demo={'delhi':{t:32,c:'Sunny',h:45,w:12},'mumbai':{t:29,c:'Humid',h:78,w:18},'bangalore':{t:24,c:'Pleasant',h:60,w:10},'london':{t:14,c:'Cloudy',h:72,w:22},'new york':{t:18,c:'Clear',h:55,w:15},'tokyo':{t:22,c:'Sunny',h:50,w:8},'dubai':{t:38,c:'Hot',h:40,w:14}};"
+                  "function fetch_(){const c=document.getElementById('city').value.trim().toLowerCase();if(!c)return;const d=demo[c]||{t:Math.round(15+Math.random()*20),c:['Sunny','Cloudy','Rainy','Clear','Partly Cloudy'][Math.floor(Math.random()*5)],h:Math.round(40+Math.random()*50),w:Math.round(5+Math.random()*25)};"
+                  "const icon=d.c.includes('Sun')||d.c.includes('Clear')?'☀️':d.c.includes('Cloud')?'☁️':d.c.includes('Rain')?'🌧️':d.c.includes('Humid')?'💧':'🌤️';"
+                  "document.getElementById('out').innerHTML=`<div style=\"font-size:5rem\">${icon}</div><div style=\"font-size:3rem;font-weight:700;color:#f59e0b\">${d.t}°C</div><div style=\"font-size:1.2rem;color:#94a3b8;margin-top:4px\">${c.charAt(0).toUpperCase()+c.slice(1)}</div><div style=\"color:#e2e8f0;margin-top:4px\">${d.c}</div>"
+                  "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px\">"
+                  "<div style=\"padding:12px;background:#0f172a;border:1px solid #334155;border-radius:8px\"><div style=\"font-size:12px;color:#94a3b8\">Humidity</div><div style=\"font-size:1.3rem;font-weight:600\">${d.h}%</div></div>"
+                  "<div style=\"padding:12px;background:#0f172a;border:1px solid #334155;border-radius:8px\"><div style=\"font-size:12px;color:#94a3b8\">Wind</div><div style=\"font-size:1.3rem;font-weight:600\">${d.w} km/h</div></div></div>`}"
+                  "document.getElementById('city').value='Delhi';fetch_();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — city search, temp, condition, humidity, wind. Pre-loaded 7 cities + random demo for others (no API key needed)."
+
+    def _build_music_player(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Simulated playlist player</p>"
+                "<div id=\"nowPlaying\" style=\"text-align:center;padding:30px;background:linear-gradient(135deg,#f59e0b22,#ef444422);border-radius:16px;margin-bottom:16px\"><div style=\"font-size:3rem\">🎵</div><div id=\"tTitle\" style=\"font-size:1.2rem;font-weight:600;margin-top:8px\">Nothing playing</div><div id=\"tArtist\" style=\"color:#94a3b8;font-size:14px\"></div></div>"
+                "<div style=\"height:6px;background:#334155;border-radius:3px;overflow:hidden;margin-bottom:14px\"><div id=\"prog\" style=\"height:100%;width:0;background:linear-gradient(90deg,#f59e0b,#ef4444);transition:width .3s\"></div></div>"
+                "<div style=\"display:flex;justify-content:center;gap:10px;margin-bottom:16px\">"
+                "<button class=\"sec\" onclick=\"prev()\" style=\"width:60px\">⏮</button>"
+                "<button onclick=\"toggle()\" style=\"width:70px\" id=\"pp\">▶</button>"
+                "<button class=\"sec\" onclick=\"next()\" style=\"width:60px\">⏭</button></div>"
+                "<div id=\"playlist\"></div>")
+        script = ("const list=[{t:'Midnight Dreams',a:'Luna Sol',dur:217},{t:'Golden Hour',a:'Sunset Boulevard',dur:195},{t:'Electric Pulse',a:'Neon Lights',dur:238},{t:'Ocean Breeze',a:'Coastal Vibes',dur:201},{t:'City Lights',a:'Urban Flow',dur:224}];"
+                  "let idx=0,playing=false,prog=0,timer;"
+                  "function show(){const s=list[idx];document.getElementById('tTitle').textContent=s.t;document.getElementById('tArtist').textContent=s.a;document.getElementById('prog').style.width=(prog/s.dur*100)+'%';document.getElementById('pp').textContent=playing?'⏸':'▶';"
+                  "document.getElementById('playlist').innerHTML=list.map((x,i)=>`<div onclick=\"idx=${i};prog=0;show()\" style=\"padding:10px 14px;background:${i===idx?'#f59e0b22':'#0f172a'};border:1px solid ${i===idx?'#f59e0b':'#334155'};border-radius:8px;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center\"><div><b>${x.t}</b><div style=\"font-size:12px;color:#94a3b8\">${x.a}</div></div><div style=\"font-size:12px;color:#64748b\">${Math.floor(x.dur/60)}:${String(x.dur%60).padStart(2,'0')}</div></div>`).join('')}"
+                  "function toggle(){playing=!playing;if(playing){timer=setInterval(()=>{prog++;if(prog>=list[idx].dur){prog=0;idx=(idx+1)%list.length}show()},1000)}else clearInterval(timer);show()}"
+                  "function next(){idx=(idx+1)%list.length;prog=0;show()}"
+                  "function prev(){idx=(idx-1+list.length)%list.length;prog=0;show()}"
+                  "show();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — simulated player with playlist, progress bar, play/pause/next/prev. Click any track to jump."
+
+    def _build_markdown_editor(self, title, safe_title, topic):
+        body = (f"<h1 style=\"margin-bottom:8px\">{safe_title}</h1><p class=\"sub\">Live preview as you type</p>"
+                "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px;height:360px\">"
+                "<textarea id=\"src\" style=\"height:100%;margin:0;font-family:'JetBrains Mono',monospace;font-size:14px\" oninput=\"render()\" placeholder=\"# Heading\\n**bold** _italic_\\n- item 1\\n- item 2\\n[link](url)\"># Welcome\n\n**Bold** _italic_\n\n- Item 1\n- Item 2\n\n[Link](https://example.com)</textarea>"
+                "<div id=\"out\" style=\"background:#0f172a;border:1px solid #334155;border-radius:8px;padding:14px;overflow-y:auto;color:#e2e8f0\"></div>"
+                "</div>"
+                "<div class=\"row\" style=\"margin-top:12px\"><button onclick=\"copy_()\" style=\"flex:1\">Copy MD</button><button class=\"sec\" onclick=\"copyHtml()\" style=\"flex:1\">Copy HTML</button></div>")
+        script = ("function md(t){return t.replace(/^### (.+)$/gm,'<h3>$1</h3>').replace(/^## (.+)$/gm,'<h2>$1</h2>').replace(/^# (.+)$/gm,'<h1>$1</h1>').replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>').replace(/_(.+?)_/g,'<i>$1</i>').replace(/`(.+?)`/g,'<code style=\"background:#1e293b;padding:2px 6px;border-radius:4px\">$1</code>').replace(/^- (.+)$/gm,'<li>$1</li>').replace(/\\[(.+?)\\]\\((.+?)\\)/g,'<a href=\"$2\" style=\"color:#f59e0b\">$1</a>').replace(/\\n\\n/g,'<br><br>')}"
+                  "function render(){const t=document.getElementById('src').value;document.getElementById('out').innerHTML=md(t)}"
+                  "function copy_(){navigator.clipboard.writeText(document.getElementById('src').value)}"
+                  "function copyHtml(){navigator.clipboard.writeText(md(document.getElementById('src').value))}"
+                  "render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — split-pane editor with live preview, supports headings, bold, italic, code, lists, links. Copy as MD or HTML."
+
+    def _build_kanban_app(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Drag tasks across columns</p>"
+                "<div class=\"row\"><input id=\"inp\" placeholder=\"New task\" style=\"flex:1\" onkeydown=\"if(event.key==='Enter')add()\"><button onclick=\"add()\">Add</button></div>"
+                "<div style=\"display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:16px\">"
+                "<div><h3 style=\"font-size:13px;color:#94a3b8;margin-bottom:8px\">📋 TODO</h3><div id=\"col-todo\" class=\"col\"></div></div>"
+                "<div><h3 style=\"font-size:13px;color:#f59e0b;margin-bottom:8px\">🔥 DOING</h3><div id=\"col-doing\" class=\"col\"></div></div>"
+                "<div><h3 style=\"font-size:13px;color:#22c55e;margin-bottom:8px\">✅ DONE</h3><div id=\"col-done\" class=\"col\"></div></div>"
+                "</div>")
+        script = ("let tasks=JSON.parse(localStorage.getItem('kanban')||'[]');"
+                  "function save(){localStorage.setItem('kanban',JSON.stringify(tasks));render()}"
+                  "function add(){const t=document.getElementById('inp').value.trim();if(!t)return;tasks.push({t,s:'todo',id:Date.now()});document.getElementById('inp').value='';save()}"
+                  "function move(id,dir){const t=tasks.find(x=>x.id===id);if(!t)return;const seq=['todo','doing','done'];const i=seq.indexOf(t.s);const next=dir==='next'?Math.min(2,i+1):Math.max(0,i-1);t.s=seq[next];save()}"
+                  "function del(id){tasks=tasks.filter(x=>x.id!==id);save()}"
+                  "function render(){['todo','doing','done'].forEach(col=>{"
+                  "document.getElementById('col-'+col).innerHTML=tasks.filter(x=>x.s===col).map(x=>"
+                  "`<div style=\"padding:10px;background:#0f172a;border:1px solid #334155;border-radius:8px;margin-bottom:6px;font-size:13px\"><div style=\"margin-bottom:6px\">${x.t}</div>"
+                  "<div style=\"display:flex;gap:4px\">${col!=='todo'?`<button onclick=\"move(${x.id},'prev')\" style=\"padding:3px 8px;font-size:11px;background:#334155\">←</button>`:''}"
+                  "${col!=='done'?`<button onclick=\"move(${x.id},'next')\" style=\"padding:3px 8px;font-size:11px\">→</button>`:''}"
+                  "<button onclick=\"del(${x.id})\" style=\"padding:3px 8px;font-size:11px;background:#ef4444;margin-left:auto\">×</button></div></div>`).join('')})}"
+                  "render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — 3-column task board (TODO / DOING / DONE), move tasks between columns, persists in localStorage."
+
+    def _build_pomodoro_app(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\" id=\"mode\">Work session</p>"
+                "<div style=\"text-align:center;font-size:5rem;font-weight:200;font-variant-numeric:tabular-nums;margin:20px 0;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent\" id=\"disp\">25:00</div>"
+                "<div class=\"row\" style=\"justify-content:center;gap:10px\"><button onclick=\"start()\" id=\"startBtn\">Start</button><button class=\"sec\" onclick=\"reset()\">Reset</button><button class=\"sec\" onclick=\"skip()\">Skip</button></div>"
+                "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px\">"
+                "<div style=\"padding:14px;background:#0f172a;border:1px solid #334155;border-radius:10px;text-align:center\"><div style=\"font-size:12px;color:#94a3b8\">Sessions today</div><div id=\"sess\" style=\"font-size:1.8rem;font-weight:700;color:#f59e0b\">0</div></div>"
+                "<div style=\"padding:14px;background:#0f172a;border:1px solid #334155;border-radius:10px;text-align:center\"><div style=\"font-size:12px;color:#94a3b8\">Focused time</div><div id=\"focused\" style=\"font-size:1.8rem;font-weight:700;color:#22c55e\">0m</div></div>"
+                "</div>")
+        script = ("const WORK=25*60,BREAK=5*60;let left=WORK,running=false,mode='work',sessions=0,focused=0,timer;"
+                  "const key='pomo_'+new Date().toDateString();const saved=JSON.parse(localStorage.getItem(key)||'{}');sessions=saved.sess||0;focused=saved.foc||0;"
+                  "function fmt(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}"
+                  "function render(){document.getElementById('disp').textContent=fmt(left);document.getElementById('mode').textContent=mode==='work'?'Work session 💼':'Break 🌴';document.getElementById('startBtn').textContent=running?'Pause':'Start';document.getElementById('sess').textContent=sessions;document.getElementById('focused').textContent=focused+'m'}"
+                  "function start(){running=!running;if(running){timer=setInterval(()=>{left--;if(left<=0){if(mode==='work'){sessions++;focused+=25;localStorage.setItem(key,JSON.stringify({sess:sessions,foc:focused}));mode='break';left=BREAK;alert('Break time! 🌴')}else{mode='work';left=WORK;alert('Back to work! 💼')}}render()},1000)}else clearInterval(timer);render()}"
+                  "function reset(){clearInterval(timer);running=false;left=mode==='work'?WORK:BREAK;render()}"
+                  "function skip(){clearInterval(timer);running=false;mode=mode==='work'?'break':'work';left=mode==='work'?WORK:BREAK;render()}"
+                  "render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — 25-min work / 5-min break cycle, auto-switches, counts daily sessions and focused minutes."
+
+    def _build_notes_app(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Markdown-ready notes with tags</p>"
+                "<div class=\"row\"><input id=\"inp\" placeholder=\"Note title\" style=\"flex:2\"><input id=\"tag\" placeholder=\"#tag\" style=\"flex:1\"></div>"
+                "<textarea id=\"body\" rows=\"3\" placeholder=\"Note body...\"></textarea>"
+                "<button onclick=\"add()\" style=\"width:100%\">Save Note</button>"
+                "<div id=\"notes\" style=\"margin-top:16px\"></div>")
+        script = ("let notes=JSON.parse(localStorage.getItem('notes_v2')||'[]');"
+                  "function save(){localStorage.setItem('notes_v2',JSON.stringify(notes));render()}"
+                  "function add(){const t=document.getElementById('inp').value.trim();const b=document.getElementById('body').value.trim();const g=document.getElementById('tag').value.trim();if(!t||!b)return;notes.unshift({t,b,g,d:Date.now()});document.getElementById('inp').value='';document.getElementById('body').value='';document.getElementById('tag').value='';save()}"
+                  "function del(i){notes.splice(i,1);save()}"
+                  "function render(){document.getElementById('notes').innerHTML=notes.map((n,i)=>"
+                  "`<div style=\"padding:14px;background:#0f172a;border:1px solid #334155;border-radius:10px;margin-bottom:8px\">"
+                  "<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:6px\"><h3 style=\"color:#f59e0b;font-size:1.1rem\">${n.t}</h3><button onclick=\"del(${i})\" style=\"padding:3px 10px;background:#ef4444;font-size:11px\">×</button></div>"
+                  "${n.g?`<span style=\"display:inline-block;padding:3px 10px;background:#f59e0b22;color:#f59e0b;border-radius:12px;font-size:11px;margin-bottom:6px\">${n.g.startsWith('#')?n.g:'#'+n.g}</span>`:''}"
+                  "<div style=\"color:#e2e8f0;font-size:14px;line-height:1.5;white-space:pre-wrap\">${n.b}</div>"
+                  "<div style=\"font-size:11px;color:#64748b;margin-top:6px\">${new Date(n.d).toLocaleString()}</div></div>`).join('')}"
+                  "render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — title + tag + body, chronological list, delete per-note. Pre-wrap preserves line breaks."
+
+    def _build_journal_app(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Private daily journal</p>"
+                "<div style=\"background:#0f172a;border:1px solid #334155;border-radius:10px;padding:16px;margin-bottom:12px\">"
+                "<div style=\"color:#f59e0b;font-weight:600;margin-bottom:8px\" id=\"today\"></div>"
+                "<textarea id=\"entry\" rows=\"5\" placeholder=\"What happened today? How did you feel?\"></textarea>"
+                "<button onclick=\"saveE()\" style=\"width:100%\">Save Today's Entry</button></div>"
+                "<div id=\"past\"></div>")
+        script = ("let entries=JSON.parse(localStorage.getItem('journal')||'{}');"
+                  "const today=new Date().toISOString().slice(0,10);"
+                  "document.getElementById('today').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});"
+                  "if(entries[today])document.getElementById('entry').value=entries[today];"
+                  "function saveE(){entries[today]=document.getElementById('entry').value.trim();if(!entries[today])delete entries[today];localStorage.setItem('journal',JSON.stringify(entries));render()}"
+                  "function del(d){delete entries[d];localStorage.setItem('journal',JSON.stringify(entries));render()}"
+                  "function render(){const past=Object.entries(entries).filter(([d])=>d!==today).sort((a,b)=>b[0].localeCompare(a[0]));"
+                  "document.getElementById('past').innerHTML=past.length?'<h3 style=\"margin:12px 0 8px;color:#94a3b8;font-size:14px\">📖 Past entries</h3>'+past.map(([d,v])=>`<div style=\"padding:14px;background:#0f172a;border:1px solid #334155;border-radius:10px;margin-bottom:8px\"><div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:6px\"><b style=\"color:#f59e0b\">${new Date(d).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</b><button onclick=\"del('${d}')\" style=\"padding:3px 10px;background:#ef4444;font-size:11px\">×</button></div><div style=\"color:#e2e8f0;font-size:14px;white-space:pre-wrap;line-height:1.5\">${v}</div></div>`).join(''):''}"
+                  "render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — one entry per day keyed by date, auto-loads today's existing entry, keeps all past days visible."
+
+    def _build_contacts_app(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Phone book</p>"
+                "<div class=\"row\"><input id=\"n\" placeholder=\"Name\" style=\"flex:1\"><input id=\"p\" placeholder=\"Phone\" style=\"flex:1\"></div>"
+                "<input id=\"e\" placeholder=\"Email (optional)\">"
+                "<button onclick=\"add()\" style=\"width:100%\">Add Contact</button>"
+                "<input id=\"search\" placeholder=\"Search contacts...\" style=\"margin-top:16px\" oninput=\"render()\">"
+                "<div id=\"list\"></div>")
+        script = ("let contacts=JSON.parse(localStorage.getItem('contacts')||'[]');"
+                  "function save(){localStorage.setItem('contacts',JSON.stringify(contacts));render()}"
+                  "function add(){const n=document.getElementById('n').value.trim();const p=document.getElementById('p').value.trim();const e=document.getElementById('e').value.trim();if(!n||!p)return;contacts.push({n,p,e,id:Date.now()});contacts.sort((a,b)=>a.n.localeCompare(b.n));['n','p','e'].forEach(x=>document.getElementById(x).value='');save()}"
+                  "function del(id){contacts=contacts.filter(c=>c.id!==id);save()}"
+                  "function render(){const q=document.getElementById('search').value.toLowerCase();"
+                  "const filtered=contacts.filter(c=>!q||c.n.toLowerCase().includes(q)||c.p.includes(q)||(c.e||'').toLowerCase().includes(q));"
+                  "document.getElementById('list').innerHTML=filtered.map(c=>`<div style=\"padding:12px 14px;background:#0f172a;border:1px solid #334155;border-radius:10px;margin-bottom:6px;display:flex;align-items:center;gap:12px\">"
+                  "<div style=\"width:40px;height:40px;background:linear-gradient(135deg,#f59e0b,#ef4444);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem\">${c.n[0].toUpperCase()}</div>"
+                  "<div style=\"flex:1\"><div style=\"font-weight:600\">${c.n}</div><div style=\"font-size:13px;color:#94a3b8\">${c.p}${c.e?' · '+c.e:''}</div></div>"
+                  "<button onclick=\"del(${c.id})\" style=\"padding:4px 10px;background:#ef4444;font-size:12px\">×</button></div>`).join('')||'<p style=\"text-align:center;color:#64748b;margin-top:16px\">No contacts</p>'}"
+                  "render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — add name + phone + email, auto-sorted alphabetically, live search, avatar from first letter."
+
+    def _build_dashboard_app(self, title, safe_title, topic):
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Overview at a glance</p>"
+                "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px\">"
+                "<div style=\"padding:16px;background:#0f172a;border:1px solid #334155;border-radius:12px\"><div style=\"font-size:12px;color:#94a3b8\">Revenue</div><div style=\"font-size:1.8rem;font-weight:700;color:#22c55e\">₹2.4L</div><div style=\"font-size:11px;color:#22c55e\">↑ 12% MoM</div></div>"
+                "<div style=\"padding:16px;background:#0f172a;border:1px solid #334155;border-radius:12px\"><div style=\"font-size:12px;color:#94a3b8\">Users</div><div style=\"font-size:1.8rem;font-weight:700;color:#f59e0b\">1,842</div><div style=\"font-size:11px;color:#f59e0b\">↑ 8%</div></div>"
+                "<div style=\"padding:16px;background:#0f172a;border:1px solid #334155;border-radius:12px\"><div style=\"font-size:12px;color:#94a3b8\">Orders</div><div style=\"font-size:1.8rem;font-weight:700;color:#3b82f6\">327</div><div style=\"font-size:11px;color:#ef4444\">↓ 3%</div></div>"
+                "<div style=\"padding:16px;background:#0f172a;border:1px solid #334155;border-radius:12px\"><div style=\"font-size:12px;color:#94a3b8\">Conv. rate</div><div style=\"font-size:1.8rem;font-weight:700;color:#a855f7\">4.2%</div><div style=\"font-size:11px;color:#22c55e\">↑ 0.3</div></div></div>"
+                "<h3 style=\"font-size:14px;color:#94a3b8;margin-bottom:8px\">Weekly trend</h3>"
+                "<div id=\"chart\" style=\"display:flex;align-items:flex-end;gap:6px;height:120px;padding:10px;background:#0f172a;border:1px solid #334155;border-radius:10px\"></div>"
+                "<h3 style=\"font-size:14px;color:#94a3b8;margin:16px 0 8px\">Recent activity</h3>"
+                "<div id=\"act\"></div>")
+        script = ("const data=[45,62,38,78,55,89,67];const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];const max=Math.max(...data);"
+                  "document.getElementById('chart').innerHTML=data.map((v,i)=>`<div style=\"flex:1;display:flex;flex-direction:column;align-items:center;gap:4px\"><div style=\"width:100%;background:linear-gradient(180deg,#f59e0b,#ef4444);height:${v/max*85}%;border-radius:4px 4px 0 0;min-height:4px\"></div><div style=\"font-size:11px;color:#64748b\">${days[i]}</div></div>`).join('');"
+                  "const acts=[{t:'New signup: Priya K.',time:'2m ago',c:'#22c55e'},{t:'Order #4821 placed',time:'15m ago',c:'#f59e0b'},{t:'Payment received ₹1,200',time:'1h ago',c:'#22c55e'},{t:'Support ticket opened',time:'2h ago',c:'#ef4444'},{t:'Report exported',time:'3h ago',c:'#3b82f6'}];"
+                  "document.getElementById('act').innerHTML=acts.map(a=>`<div style=\"display:flex;align-items:center;gap:10px;padding:10px;background:#0f172a;border-left:3px solid ${a.c};border-radius:0 8px 8px 0;margin-bottom:4px\"><div style=\"flex:1;font-size:13px\">${a.t}</div><div style=\"font-size:11px;color:#64748b\">${a.time}</div></div>`).join('');")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — KPI stat cards (revenue/users/orders/conv.), weekly bar chart with 7-day data, recent-activity feed with colored indicators."
+
+    def _build_portfolio_app(self, title, safe_title, topic):
+        body = ("<div style=\"text-align:center;padding:20px 0 10px\">"
+                "<div style=\"width:100px;height:100px;background:linear-gradient(135deg,#f59e0b,#ef4444);border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;font-weight:700;color:#fff\">A</div>"
+                "<h1>Aditya Kumar</h1><p class=\"sub\">Full-Stack Developer · AI Engineer</p>"
+                "<div style=\"display:flex;justify-content:center;gap:10px;margin-top:12px\"><button style=\"width:auto\">Contact</button><button class=\"sec\" style=\"width:auto\">Download CV</button></div></div>"
+                "<h3 style=\"color:#f59e0b;font-size:1rem;margin:24px 0 8px\">About</h3>"
+                "<p style=\"color:#94a3b8;line-height:1.6;font-size:14px\">Builder working on AI engines, web apps, and developer tools. Passionate about clean systems and good design.</p>"
+                "<h3 style=\"color:#f59e0b;font-size:1rem;margin:24px 0 8px\">Projects</h3>"
+                "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:10px\">"
+                "<div style=\"padding:14px;background:#0f172a;border:1px solid #334155;border-radius:10px\"><div style=\"font-size:1.5rem\">🧠</div><div style=\"font-weight:600;margin:4px 0\">NAGRO 4.1</div><div style=\"font-size:12px;color:#94a3b8\">Self-built AI engine</div></div>"
+                "<div style=\"padding:14px;background:#0f172a;border:1px solid #334155;border-radius:10px\"><div style=\"font-size:1.5rem\">📱</div><div style=\"font-weight:600;margin:4px 0\">SchoolHack</div><div style=\"font-size:12px;color:#94a3b8\">Student productivity</div></div>"
+                "<div style=\"padding:14px;background:#0f172a;border:1px solid #334155;border-radius:10px\"><div style=\"font-size:1.5rem\">⚡</div><div style=\"font-weight:600;margin:4px 0\">Fast API</div><div style=\"font-size:12px;color:#94a3b8\">Python backend</div></div>"
+                "<div style=\"padding:14px;background:#0f172a;border:1px solid #334155;border-radius:10px\"><div style=\"font-size:1.5rem\">🎨</div><div style=\"font-weight:600;margin:4px 0\">UI Kit</div><div style=\"font-size:12px;color:#94a3b8\">Design system</div></div></div>"
+                "<h3 style=\"color:#f59e0b;font-size:1rem;margin:24px 0 8px\">Skills</h3>"
+                "<div style=\"display:flex;flex-wrap:wrap;gap:6px\">"
+                + "".join(f'<span style="padding:4px 10px;background:#f59e0b22;color:#f59e0b;border-radius:12px;font-size:12px">{s}</span>' for s in ['Python','JavaScript','React','FastAPI','Docker','Postgres','AI','System Design'])
+                + "</div>")
+        script = "// static portfolio"
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — profile avatar, about, 4 project cards with icons, skills chips. Static portfolio template."
+
+    def _build_netflix_clone(self, title, safe_title, topic):
+        body = ("<h1 style=\"background:linear-gradient(135deg,#e50914,#8b0000);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:900\">STREAMFLIX</h1><p class=\"sub\">Browse and watch</p>"
+                "<div style=\"height:200px;background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:12px;padding:20px;margin-bottom:16px;display:flex;flex-direction:column;justify-content:flex-end;border:1px solid #334155\">"
+                "<div style=\"font-size:11px;color:#e50914;font-weight:700;letter-spacing:1px\">★ FEATURED</div>"
+                "<h2 style=\"font-size:1.6rem;margin-top:4px\">Stranger Nights</h2>"
+                "<p style=\"color:#94a3b8;font-size:13px;margin-top:4px;max-width:320px\">In a quiet town, strange things begin at midnight...</p>"
+                "<div style=\"display:flex;gap:8px;margin-top:12px\"><button style=\"width:auto;background:#fff;color:#000\">▶ Play</button><button class=\"sec\" style=\"width:auto\">+ My List</button></div></div>"
+                + "".join(f'<h3 style="color:#fff;font-size:1rem;margin:16px 0 8px">{row}</h3><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px">' +
+                         "".join(f'<div style="aspect-ratio:2/3;background:linear-gradient(135deg,#{"".join(["0123456789abcdef"[i%16] for i in [j*7+r*3+2, j*5+r+7, j+r*2+1, j*3+r*4+5, j*2+r+3, j+r+9]])},#1e293b);border-radius:6px;padding:8px;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;transition:transform .15s" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'\'""><div style="font-size:10px;color:#fff;font-weight:600;text-shadow:0 1px 2px #000">Title {j+1}</div></div>'
+                                 for j in range(3)) +
+                         '</div>'
+                         for r, row in enumerate(['🔥 Trending Now','🎬 New Releases','🎭 Drama','⚡ Action']))
+                )
+        script = "// static Netflix-style home"
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — streaming home page: featured hero banner with play/mylist, 4 content rows (Trending/New/Drama/Action) with hover-scale thumbnails, Netflix-style red branding."
 
     def _build_generic_app(self, title: str, safe_title: str, topic: str, p: str) -> str:
         """Universal fallback — builds a working interactive app for ANY topic."""
