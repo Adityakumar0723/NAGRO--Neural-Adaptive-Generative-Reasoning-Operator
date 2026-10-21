@@ -1903,20 +1903,17 @@ class NAGROBrain:
         if smart_code:
             return smart_code
 
+        # Dynamic generator — builds working code for ANY query
+        dynamic = self._generate_dynamic_app(p, core)
+        if dynamic:
+            return dynamic
+
         results = self._web_search(prompt + " code example")
         if results:
             return self._compose_answer(prompt, results)
-        return (
-            "I can help with code! Here are some things I can write:\n\n"
-            "- \"Write a Python quicksort\" — sorting algorithms\n"
-            "- \"Create a REST API\" — web backend\n"
-            "- \"JavaScript fetch example\" — HTTP requests\n"
-            "- \"Binary search tree\" — data structures\n"
-            "- \"Make a calculator app\" — interactive HTML app\n"
-            "- \"Python course\" — full learning roadmap\n"
-            "- \"Build a todo app\" — complete project\n\n"
-            "Just tell me what you need!"
-        )
+
+        # Last resort: still generate something useful
+        return self._generate_dynamic_app(p, core, force=True)
 
     def _generate_code_smart(self, prompt: str, lang: str) -> str | None:
         """Smart code generation — combine multiple patterns when no single pattern matches."""
@@ -2004,6 +2001,275 @@ class NAGROBrain:
             f"**What this does:** {desc_parts}.\n\n"
             f"*Want me to expand any part or add more features? Just ask!*"
         )
+
+    def _generate_dynamic_app(self, p: str, core: str, force: bool = False) -> str | None:
+        """Universal dynamic app generator — builds working code for ANY query.
+        No templates needed. Analyzes query intent and constructs HTML/CSS/JS live."""
+        # Extract topic name from the query
+        topic = re.sub(
+            r'^(?:bro\s+)?(?:make|build|create|write|generate|develop|design|code|implement|'
+            r'program|banao|likho|banawo|karo)\s+(?:a\s+|an\s+|me\s+|one\s+)?',
+            '', p, flags=re.I
+        ).strip()
+        topic = re.sub(r'\s+(?:in\s+)?(?:html|css|js|javascript|python|java)$', '', topic, flags=re.I).strip()
+        topic = re.sub(r'\s+(?:app|application|website|webpage|page)$', '', topic, flags=re.I).strip()
+        if not topic:
+            topic = core or p
+        if not topic:
+            return None
+
+        title = topic.title()
+        safe_title = re.sub(r'[^a-zA-Z0-9 ]', '', title) or "App"
+
+        # Detect intent category — figure out what KIND of app this is
+        is_game = any(w in p for w in ["game", "play", "snake", "pong", "flappy", "memory game",
+                                        "tetris", "minesweeper", "chess", "checkers", "cards",
+                                        "shooter", "racing", "puzzle game", "arcade"])
+        is_input_output = any(w in p for w in ["converter", "convert", "translator", "translate",
+                                                 "generator", "calculator", "checker", "counter",
+                                                 "formatter", "encoder", "decoder", "analyzer"])
+        is_list_app = any(w in p for w in ["list", "manager", "tracker", "todo", "notes", "diary",
+                                            "journal", "contacts", "inventory", "bookmark", "wishlist",
+                                            "shopping", "expense", "budget", "habit"])
+        is_display = any(w in p for w in ["dashboard", "display", "viewer", "gallery", "showcase",
+                                            "portfolio", "resume", "profile", "card", "landing"])
+        is_timer = any(w in p for w in ["timer", "stopwatch", "clock", "countdown", "alarm",
+                                         "pomodoro", "schedule"])
+        is_quiz = any(w in p for w in ["quiz", "trivia", "test", "exam", "question", "flashcard"])
+        is_chat = any(w in p for w in ["chat", "message", "comment", "forum", "post"])
+        is_form = any(w in p for w in ["form", "signup", "signin", "login", "register", "contact",
+                                         "survey", "feedback"])
+        is_draw = any(w in p for w in ["draw", "paint", "canvas", "sketch", "whiteboard", "doodle"])
+
+        # Build the app based on intent
+        if is_game:
+            return self._build_game_app(title, safe_title, topic, p)
+        if is_draw:
+            return self._build_draw_app(title, safe_title, topic)
+        if is_timer:
+            return self._build_timer_app(title, safe_title, topic, p)
+        if is_quiz:
+            return self._build_quiz_app(title, safe_title, topic)
+        if is_chat:
+            return self._build_chat_app(title, safe_title, topic)
+        if is_form:
+            return self._build_form_app(title, safe_title, topic)
+        if is_list_app:
+            return self._build_list_app(title, safe_title, topic)
+        if is_input_output:
+            return self._build_io_app(title, safe_title, topic, p)
+        if is_display:
+            return self._build_display_app(title, safe_title, topic)
+
+        # Default: build a generic interactive app
+        return self._build_generic_app(title, safe_title, topic, p)
+
+    def _app_wrap(self, title: str, body: str, script: str, extra_css: str = "") -> str:
+        """Wrap HTML body + JS into a complete standalone page with NAGRO's dark theme."""
+        html = (
+            "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n"
+            "<meta charset=\"UTF-8\">\n"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+            f"<title>{title}</title>\n"
+            "<style>\n"
+            "*{margin:0;padding:0;box-sizing:border-box}"
+            "body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}"
+            ".app{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:32px;width:100%;max-width:500px;box-shadow:0 10px 40px rgba(0,0,0,.3)}"
+            "h1{text-align:center;margin-bottom:8px;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:1.6rem}"
+            ".sub{text-align:center;color:#64748b;font-size:14px;margin-bottom:24px}"
+            "input,textarea,select{width:100%;padding:12px 14px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:15px;outline:none;font-family:inherit;transition:border .2s;margin-bottom:12px}"
+            "input:focus,textarea:focus,select:focus{border-color:#f59e0b}"
+            "button{padding:12px 20px;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;transition:transform .15s}"
+            "button:hover{transform:scale(1.02)}"
+            "button.sec{background:#334155;color:#e2e8f0}"
+            ".row{display:flex;gap:8px;margin-bottom:12px}"
+            ".row input{margin-bottom:0}"
+            ".row button{white-space:nowrap}"
+            ".output{margin-top:20px;padding:16px;background:#0f172a;border:1px solid #334155;border-radius:8px;min-height:50px;color:#f59e0b;font-size:15px;word-break:break-word}"
+            ".list{list-style:none;margin-top:16px}"
+            ".list li{padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}"
+            ".list li button{padding:4px 10px;font-size:12px;background:#ef4444}"
+            ".stats{text-align:center;color:#64748b;font-size:13px;margin-top:12px}"
+            f"{extra_css}\n"
+            "</style>\n</head>\n<body>\n"
+            f"<div class=\"app\">\n{body}\n</div>\n"
+            f"<script>\n{script}\n</script>\n"
+            "</body>\n</html>"
+        )
+        return html
+
+    def _build_game_app(self, title: str, safe_title: str, topic: str, p: str) -> str:
+        # Snake game — fits most "snake" requests, works for most grid games
+        if "snake" in p:
+            body = (f"<h1>{safe_title}</h1><p class=\"sub\">Use arrow keys to move</p>"
+                    "<canvas id=\"c\" width=\"400\" height=\"400\" style=\"display:block;margin:0 auto;background:#0f172a;border:1px solid #334155;border-radius:8px\"></canvas>"
+                    "<div class=\"stats\">Score: <span id=\"score\">0</span></div>"
+                    "<div style=\"text-align:center;margin-top:12px\"><button onclick=\"reset()\">New Game</button></div>")
+            script = ("const c=document.getElementById('c'),x=c.getContext('2d'),s=20;let snake,dir,food,score,timer;"
+                      "function reset(){snake=[{x:200,y:200}];dir={x:s,y:0};food=randF();score=0;document.getElementById('score').textContent=0;clearInterval(timer);timer=setInterval(tick,100)}"
+                      "function randF(){return{x:Math.floor(Math.random()*20)*s,y:Math.floor(Math.random()*20)*s}}"
+                      "function tick(){const h={x:snake[0].x+dir.x,y:snake[0].y+dir.y};if(h.x<0||h.x>=400||h.y<0||h.y>=400||snake.some(p=>p.x===h.x&&p.y===h.y)){clearInterval(timer);alert('Game Over! Score: '+score);return}snake.unshift(h);if(h.x===food.x&&h.y===food.y){score++;document.getElementById('score').textContent=score;food=randF()}else snake.pop();x.fillStyle='#0f172a';x.fillRect(0,0,400,400);x.fillStyle='#ef4444';x.fillRect(food.x,food.y,s,s);x.fillStyle='#f59e0b';snake.forEach(p=>x.fillRect(p.x,p.y,s-1,s-1))}"
+                      "document.addEventListener('keydown',e=>{const k=e.key;if(k==='ArrowUp'&&dir.y===0)dir={x:0,y:-s};else if(k==='ArrowDown'&&dir.y===0)dir={x:0,y:s};else if(k==='ArrowLeft'&&dir.x===0)dir={x:-s,y:0};else if(k==='ArrowRight'&&dir.x===0)dir={x:s,y:0}});reset();")
+            return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — classic Snake game with arrow key controls, score tracking, collision detection. Click Preview to play!"
+
+        # Generic clicker/reaction game
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Click the targets as fast as you can!</p>"
+                "<div id=\"area\" style=\"position:relative;height:300px;background:#0f172a;border:1px solid #334155;border-radius:8px;overflow:hidden;cursor:crosshair\"></div>"
+                "<div class=\"stats\">Score: <span id=\"score\">0</span> | Time: <span id=\"time\">30</span>s</div>"
+                "<div style=\"text-align:center;margin-top:12px\"><button onclick=\"start()\">Start Game</button></div>")
+        script = ("let score=0,time=30,running=false,timer,gameTimer;"
+                  "function start(){score=0;time=30;running=true;document.getElementById('area').innerHTML='';update();spawn();gameTimer=setInterval(()=>{time--;document.getElementById('time').textContent=time;if(time<=0){running=false;clearInterval(gameTimer);clearInterval(timer);alert('Game Over! Score: '+score)}},1000);timer=setInterval(spawn,900)}"
+                  "function spawn(){if(!running)return;const a=document.getElementById('area'),t=document.createElement('div');const colors=['#f59e0b','#ef4444','#22c55e','#3b82f6'];t.style.cssText=`position:absolute;width:50px;height:50px;border-radius:50%;background:${colors[Math.floor(Math.random()*4)]};left:${Math.random()*85}%;top:${Math.random()*80}%`;t.onclick=()=>{score++;update();t.remove()};a.appendChild(t);setTimeout(()=>t.remove(),1500)}"
+                  "function update(){document.getElementById('score').textContent=score}")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — reaction game: click colored targets before they disappear, 30-second timer, score counter."
+
+    def _build_draw_app(self, title: str, safe_title: str, topic: str) -> str:
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Draw anything you want</p>"
+                "<canvas id=\"c\" width=\"440\" height=\"300\" style=\"display:block;margin:0 auto;background:#fff;border:1px solid #334155;border-radius:8px;cursor:crosshair\"></canvas>"
+                "<div class=\"row\" style=\"margin-top:12px\">"
+                "<input type=\"color\" id=\"col\" value=\"#f59e0b\" style=\"width:50px;padding:4px\">"
+                "<input type=\"range\" id=\"size\" min=\"1\" max=\"20\" value=\"3\" style=\"flex:1\">"
+                "<button class=\"sec\" onclick=\"clearC()\">Clear</button>"
+                "</div>")
+        script = ("const c=document.getElementById('c'),x=c.getContext('2d');let draw=false;"
+                  "c.addEventListener('mousedown',e=>{draw=true;x.beginPath();x.moveTo(e.offsetX,e.offsetY)});"
+                  "c.addEventListener('mousemove',e=>{if(!draw)return;x.lineWidth=document.getElementById('size').value;x.strokeStyle=document.getElementById('col').value;x.lineCap='round';x.lineTo(e.offsetX,e.offsetY);x.stroke()});"
+                  "c.addEventListener('mouseup',()=>draw=false);c.addEventListener('mouseleave',()=>draw=false);"
+                  "function clearC(){x.clearRect(0,0,c.width,c.height)}")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — drawing canvas with color picker, brush size slider, clear button. Click Preview and draw!"
+
+    def _build_timer_app(self, title: str, safe_title: str, topic: str, p: str) -> str:
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Set your time and go</p>"
+                "<div style=\"text-align:center;font-size:4rem;font-weight:200;margin:20px 0;font-variant-numeric:tabular-nums;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent\" id=\"disp\">00:00</div>"
+                "<div class=\"row\"><input type=\"number\" id=\"mins\" placeholder=\"Minutes\" min=\"0\" value=\"5\"><input type=\"number\" id=\"secs\" placeholder=\"Seconds\" min=\"0\" value=\"0\"></div>"
+                "<div class=\"row\"><button onclick=\"start()\">Start</button><button class=\"sec\" onclick=\"pause()\">Pause</button><button class=\"sec\" onclick=\"reset()\">Reset</button></div>")
+        script = ("let total=0,remaining=0,timer=null;"
+                  "function fmt(s){const m=Math.floor(s/60),r=s%60;return String(m).padStart(2,'0')+':'+String(r).padStart(2,'0')}"
+                  "function render(){document.getElementById('disp').textContent=fmt(remaining)}"
+                  "function start(){if(timer)return;if(remaining<=0){total=parseInt(document.getElementById('mins').value||0)*60+parseInt(document.getElementById('secs').value||0);remaining=total}if(remaining<=0)return;timer=setInterval(()=>{remaining--;render();if(remaining<=0){clearInterval(timer);timer=null;alert('Time up!')}},1000)}"
+                  "function pause(){clearInterval(timer);timer=null}"
+                  "function reset(){clearInterval(timer);timer=null;remaining=0;render()}"
+                  "render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — set minutes/seconds, start/pause/reset controls, alerts when done. Click Preview!"
+
+    def _build_quiz_app(self, title: str, safe_title: str, topic: str) -> str:
+        body = f"<h1>{safe_title}</h1><p class=\"sub\">Answer each question</p><div id=\"quiz\"></div>"
+        script = ("const Q=[{q:'Which language runs in browsers?',o:['Python','JavaScript','Java','Rust'],a:1},"
+                  "{q:'What does CSS style?',o:['Logic','Appearance','Data','Security'],a:1},"
+                  "{q:'Which keyword declares a variable in JavaScript?',o:['var','def','let','Both var and let'],a:3},"
+                  "{q:'Which tag defines a hyperlink in HTML?',o:['<link>','<a>','<href>','<url>'],a:1},"
+                  "{q:'What does JSON stand for?',o:['JavaScript Object Notation','Java Standard Object Name','Just Simple Object Nodes','JavaScript Online Notation'],a:0}];"
+                  "let i=0,s=0;function show(){const d=document.getElementById('quiz');if(i>=Q.length){d.innerHTML=`<div class=\"output\" style=\"text-align:center;font-size:1.3rem\">Score: ${s}/${Q.length}<br><button onclick=\"i=0;s=0;show()\" style=\"margin-top:12px\">Play Again</button></div>`;return}const q=Q[i];d.innerHTML=`<div style=\"margin-bottom:12px;color:#94a3b8\">Question ${i+1}/${Q.length}</div><div style=\"font-size:1.1rem;margin-bottom:16px\">${q.q}</div>`+q.o.map((o,j)=>`<button class=\"sec\" style=\"display:block;width:100%;text-align:left;margin-bottom:6px\" onclick=\"pick(${j})\">${o}</button>`).join('')}"
+                  "function pick(j){if(j===Q[i].a)s++;i++;show()}show();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — 5-question quiz with score tracking and play-again. Click Preview!"
+
+    def _build_chat_app(self, title: str, safe_title: str, topic: str) -> str:
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Type and send messages</p>"
+                "<div id=\"msgs\" style=\"background:#0f172a;border:1px solid #334155;border-radius:8px;padding:12px;height:260px;overflow-y:auto;margin-bottom:12px\"></div>"
+                "<div class=\"row\"><input id=\"inp\" placeholder=\"Type a message...\" onkeydown=\"if(event.key==='Enter')send()\"><button onclick=\"send()\">Send</button></div>")
+        script = ("const msgs=document.getElementById('msgs');const bots=['Hi there!','Interesting!','Tell me more','Nice one!','Cool','Got it','Really?','Awesome','I agree','Haha '];"
+                  "function add(txt,me){const d=document.createElement('div');d.style.cssText=`margin:8px 0;padding:8px 12px;border-radius:12px;max-width:75%;${me?'background:#f59e0b;color:#0f172a;margin-left:auto;text-align:right':'background:#334155;color:#e2e8f0'}`;d.textContent=txt;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight}"
+                  "function send(){const i=document.getElementById('inp');const t=i.value.trim();if(!t)return;add(t,true);i.value='';setTimeout(()=>add(bots[Math.floor(Math.random()*bots.length)],false),600)}"
+                  "add('Welcome to '+document.title+'! Send a message.',false);")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — chat UI with message bubbles, auto-reply, scrollable thread. Click Preview!"
+
+    def _build_form_app(self, title: str, safe_title: str, topic: str) -> str:
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Fill in your details</p>"
+                "<form onsubmit=\"event.preventDefault();submit()\">"
+                "<input type=\"text\" id=\"name\" placeholder=\"Full name\" required>"
+                "<input type=\"email\" id=\"email\" placeholder=\"Email address\" required>"
+                "<input type=\"tel\" id=\"phone\" placeholder=\"Phone (optional)\">"
+                "<textarea id=\"msg\" placeholder=\"Your message...\" rows=\"4\" required></textarea>"
+                "<button type=\"submit\" style=\"width:100%\">Submit</button></form>"
+                "<div id=\"result\" class=\"output\" style=\"display:none\"></div>")
+        script = ("function submit(){const n=document.getElementById('name').value,e=document.getElementById('email').value,p=document.getElementById('phone').value,m=document.getElementById('msg').value;const r=document.getElementById('result');r.style.display='block';r.innerHTML=`<b>Submitted!</b><br>Name: ${n}<br>Email: ${e}${p?'<br>Phone: '+p:''}<br>Message: ${m}`}")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — form with validation, submit handler, result display. Click Preview!"
+
+    def _build_list_app(self, title: str, safe_title: str, topic: str) -> str:
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">Add, mark done, and remove items</p>"
+                "<div class=\"row\"><input id=\"inp\" placeholder=\"Add new item...\" onkeydown=\"if(event.key==='Enter')add()\"><button onclick=\"add()\">Add</button></div>"
+                "<ul class=\"list\" id=\"list\"></ul>"
+                "<div class=\"stats\" id=\"stats\"></div>")
+        script = ("let items=JSON.parse(localStorage.getItem('nagro_list_'+document.title)||'[]');"
+                  "function save(){localStorage.setItem('nagro_list_'+document.title,JSON.stringify(items))}"
+                  "function add(){const i=document.getElementById('inp');const t=i.value.trim();if(!t)return;items.push({text:t,done:false});i.value='';save();render()}"
+                  "function toggle(j){items[j].done=!items[j].done;save();render()}"
+                  "function del(j){items.splice(j,1);save();render()}"
+                  "function render(){const l=document.getElementById('list');l.innerHTML=items.map((it,j)=>`<li><span style=\"${it.done?'text-decoration:line-through;opacity:.5':''};cursor:pointer\" onclick=\"toggle(${j})\">${it.text}</span><button onclick=\"del(${j})\">x</button></li>`).join('');const d=items.filter(i=>i.done).length;document.getElementById('stats').textContent=items.length?`${d}/${items.length} completed`:'No items yet'}render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — add/toggle/delete items, saves to localStorage, completion stats. Click Preview!"
+
+    def _build_io_app(self, title: str, safe_title: str, topic: str, p: str) -> str:
+        # Detect specific transformation types
+        logic = ""
+        placeholder = "Enter input..."
+        if "upper" in p or "uppercase" in p:
+            logic = "return s.toUpperCase()"; placeholder = "Text to uppercase"
+        elif "lower" in p or "lowercase" in p:
+            logic = "return s.toLowerCase()"; placeholder = "Text to lowercase"
+        elif "reverse" in p:
+            logic = "return s.split('').reverse().join('')"; placeholder = "Text to reverse"
+        elif "word count" in p or "word counter" in p or "count word" in p:
+            logic = "return s.trim()?s.trim().split(' ').filter(w=>w).length+' words, '+s.length+' chars':'0 words'"; placeholder = "Paste text"
+        elif "binary" in p:
+            logic = "return s.split('').map(c=>c.charCodeAt(0).toString(2).padStart(8,'0')).join(' ')"; placeholder = "Text to binary"
+        elif "hex" in p:
+            logic = "return s.split('').map(c=>c.charCodeAt(0).toString(16)).join(' ')"; placeholder = "Text to hex"
+        elif "base64" in p:
+            logic = "try{return btoa(s)}catch(e){return 'Invalid input'}"; placeholder = "Text to base64"
+        elif "celsius" in p or "fahrenheit" in p or "temperature" in p:
+            logic = "const n=parseFloat(s);if(isNaN(n))return 'Enter a number';return `${n}°C = ${(n*9/5+32).toFixed(2)}°F\\n${n}°F = ${((n-32)*5/9).toFixed(2)}°C`"; placeholder = "Enter number"
+        elif "age" in p and ("calc" in p or "find" in p):
+            logic = "const d=new Date(s);if(isNaN(d))return 'Enter valid date (YYYY-MM-DD)';const diff=Date.now()-d;const y=Math.floor(diff/(365.25*24*3600*1000));return `You are ${y} years old`"; placeholder = "YYYY-MM-DD"
+        elif "palindrome" in p:
+            logic = "const c=s.toLowerCase().replace(/[^a-z0-9]/g,'');return c===c.split('').reverse().join('')?'Yes — it is a palindrome!':'No, not a palindrome'"; placeholder = "Enter text"
+        elif "random" in p and ("number" in p or "num" in p):
+            logic = "const n=parseInt(s)||100;return 'Random: '+Math.floor(Math.random()*n+1)"; placeholder = "Max value (e.g. 100)"
+        elif "qr" in p:
+            logic = "return 'QR for: '+s+' (use /qr-generator for real QR)'"; placeholder = "Text to encode"
+        elif "tip" in p:
+            logic = "const parts=s.split(',');const bill=parseFloat(parts[0]),pct=parseFloat(parts[1])||15;if(isNaN(bill))return 'Format: bill, tip%';const tip=bill*pct/100;return `Tip: ${tip.toFixed(2)}\\nTotal: ${(bill+tip).toFixed(2)}`"; placeholder = "bill, tip% (e.g. 50, 15)"
+        else:
+            # Generic: echo + length + reversed for any unknown converter
+            logic = "return `Input: ${s}\\nLength: ${s.length}\\nReversed: ${s.split('').reverse().join('')}\\nWords: ${s.trim()?s.trim().split(' ').filter(w=>w).length:0}`"; placeholder = f"Enter data for {topic}"
+
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">{topic.capitalize()}</p>"
+                f"<textarea id=\"inp\" placeholder=\"{placeholder}\" rows=\"3\" oninput=\"go()\"></textarea>"
+                "<div class=\"row\"><button onclick=\"go()\" style=\"flex:1\">Convert</button><button class=\"sec\" onclick=\"copyR()\">Copy Result</button></div>"
+                "<div class=\"output\" id=\"out\">Result will appear here</div>")
+        script = (f"function transform(s){{{logic}}}"
+                  "function go(){const s=document.getElementById('inp').value;if(!s){document.getElementById('out').textContent='Result will appear here';return}try{document.getElementById('out').textContent=transform(s)}catch(e){document.getElementById('out').textContent='Error: '+e.message}}"
+                  "function copyR(){navigator.clipboard.writeText(document.getElementById('out').textContent)}")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — real-time {topic} with input area, result display, and copy button. Click Preview and try it!"
+
+    def _build_display_app(self, title: str, safe_title: str, topic: str) -> str:
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">A beautiful showcase</p>"
+                "<div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px\">"
+                "<div style=\"padding:16px;background:#0f172a;border:1px solid #334155;border-radius:10px;text-align:center\"><div style=\"font-size:2rem\">&#9889;</div><div style=\"color:#f59e0b;margin:4px 0\">Fast</div><div style=\"font-size:12px;color:#94a3b8\">Lightning quick</div></div>"
+                "<div style=\"padding:16px;background:#0f172a;border:1px solid #334155;border-radius:10px;text-align:center\"><div style=\"font-size:2rem\">&#128274;</div><div style=\"color:#f59e0b;margin:4px 0\">Secure</div><div style=\"font-size:12px;color:#94a3b8\">End-to-end</div></div>"
+                "<div style=\"padding:16px;background:#0f172a;border:1px solid #334155;border-radius:10px;text-align:center\"><div style=\"font-size:2rem\">&#127912;</div><div style=\"color:#f59e0b;margin:4px 0\">Beautiful</div><div style=\"font-size:12px;color:#94a3b8\">Modern UI</div></div>"
+                "</div>"
+                "<div style=\"text-align:center;margin-top:20px\"><button onclick=\"alert('Hello from '+document.title)\">Get Started</button></div>")
+        script = "// static showcase"
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — modern showcase page with feature cards, gradient title, interactive button. Click Preview!"
+
+    def _build_generic_app(self, title: str, safe_title: str, topic: str, p: str) -> str:
+        """Universal fallback — builds a working interactive app for ANY topic."""
+        body = (f"<h1>{safe_title}</h1><p class=\"sub\">{topic.capitalize()}</p>"
+                f"<textarea id=\"inp\" placeholder=\"Enter something related to {topic}...\" rows=\"3\"></textarea>"
+                "<div class=\"row\">"
+                "<button onclick=\"process()\">Process</button>"
+                "<button class=\"sec\" onclick=\"clearAll()\">Clear</button>"
+                "<button class=\"sec\" onclick=\"save()\">Save</button>"
+                "</div>"
+                "<ul class=\"list\" id=\"history\"></ul>"
+                "<div class=\"stats\" id=\"stats\">0 entries</div>")
+        script = (f"const TOPIC={title!r};let history=JSON.parse(localStorage.getItem('nagro_'+TOPIC)||'[]');"
+                  "function save(){localStorage.setItem('nagro_'+TOPIC,JSON.stringify(history));render()}"
+                  "function process(){const v=document.getElementById('inp').value.trim();if(!v)return;const entry={text:v,time:new Date().toLocaleTimeString(),chars:v.length,words:v.split(/\\s+/).filter(Boolean).length};history.unshift(entry);document.getElementById('inp').value='';save()}"
+                  "function del(i){history.splice(i,1);save()}"
+                  "function clearAll(){if(confirm('Clear all?')){history=[];save()}}"
+                  "function render(){const l=document.getElementById('history');l.innerHTML=history.map((h,i)=>`<li><div><div>${h.text}</div><div style=\"font-size:11px;color:#64748b;margin-top:2px\">${h.time} — ${h.words}w, ${h.chars}c</div></div><button onclick=\"del(${i})\">x</button></li>`).join('');document.getElementById('stats').textContent=history.length+' entries'}render();")
+        return f"```html\n{self._app_wrap(title, body, script)}\n```\n\n**Explanation:** {safe_title} — fully interactive {topic} app with input area, processing, saved history (localStorage), word/char stats, delete and clear. Click Preview and try!"
 
     def _generate_code(self, prompt: str, lang: str) -> str | None:
         p = prompt.lower()

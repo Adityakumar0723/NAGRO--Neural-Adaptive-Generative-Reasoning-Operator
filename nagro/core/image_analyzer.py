@@ -65,6 +65,7 @@ def analyze_image(image_data: bytes) -> dict:
     noise_label = _estimate_noise(rgb)
     texture = _detect_texture(rgb)
     content_type = _detect_content_type(rgb, width, height, complexity_val, sharpness_val, contrast, saturation_val)
+    scene_subjects = _detect_scene_subjects(rgb, width, height, avg_r, avg_g, avg_b, brightness, contrast, saturation_val, dominant_colors)
     mood = _detect_mood(avg_r, avg_g, avg_b, brightness, saturation_val, contrast)
     color_harmony = _analyze_color_harmony(dominant_colors)
     regions = _analyze_regions(rgb, width, height)
@@ -80,7 +81,7 @@ def analyze_image(image_data: bytes) -> dict:
         dominant_colors, unique_color_names, color_temp, saturation_label,
         sharpness_label, complexity_label, noise_label, texture, content_type,
         mood, color_harmony, regions, histogram_info, has_transparency,
-        is_animated, quality_score, suggestions
+        is_animated, quality_score, suggestions, scene_subjects
     )
 
     return {
@@ -357,6 +358,138 @@ def _detect_content_type(img, w, h, complexity, sharpness, contrast, saturation)
         return "Image"
 
 
+def _detect_scene_subjects(img, w, h, avg_r, avg_g, avg_b, brightness, contrast, saturation, dominant_colors):
+    """Detect likely subjects/scenes in the image using regional color analysis + heuristics."""
+    try:
+        from PIL import ImageStat
+        subjects = []
+        confidence = {}
+
+        half_h = h // 2
+        upper = img.crop((0, 0, w, half_h))
+        lower = img.crop((0, half_h, w, h))
+        up_stat = ImageStat.Stat(upper.convert("RGB"))
+        lo_stat = ImageStat.Stat(lower.convert("RGB"))
+        ur, ug, ub = [int(x) for x in up_stat.mean]
+        lr, lg, lb = [int(x) for x in lo_stat.mean]
+
+        # Sky detection — upper region is blue-ish and bright
+        if ub > ur + 20 and ub > 140 and ug > 120 and (ub - ur) > 15:
+            subjects.append("sky")
+            confidence["sky"] = "high"
+        elif ub > ur and ub > 100 and brightness > 100 and ur < 200:
+            subjects.append("possible sky or blue background")
+            confidence["sky"] = "medium"
+
+        # Sunset/sunrise — upper has orange/pink gradient, warm colors
+        if ur > 180 and ug > 100 and ug < 180 and ub < 150 and (ur - ub) > 50:
+            subjects.append("sunset or sunrise")
+            confidence["sunset"] = "high"
+
+        # Grass/vegetation — strong green in lower region
+        if lg > lr + 15 and lg > lb + 15 and lg > 80:
+            subjects.append("grass or vegetation")
+            confidence["grass"] = "high"
+        elif lg > lr and lg > lb and lg > 60:
+            subjects.append("possible plants or greenery")
+            confidence["grass"] = "medium"
+
+        # Water/ocean — strong blue dominant in lower region
+        if lb > lr + 15 and lb > lg + 10 and lb > 100 and lr < 150:
+            subjects.append("water, ocean, or lake")
+            confidence["water"] = "high"
+
+        # Sand/beach — tan/beige/yellow in lower region
+        if lr > 180 and lg > 160 and lb < 160 and abs(lr - lg) < 40 and lr > lb:
+            subjects.append("sand or beach")
+            confidence["sand"] = "medium"
+
+        # Snow — very bright, low saturation, cool
+        if brightness > 200 and saturation < 50 and avg_b >= avg_r:
+            subjects.append("snow or ice")
+            confidence["snow"] = "high"
+
+        # Night scene — very dark overall with some bright points
+        if brightness < 60 and contrast > 40:
+            subjects.append("night scene")
+            confidence["night"] = "high"
+
+        # Forest/trees — dominant dark green + brown
+        if any(_is_green(c) for c in dominant_colors[:3]) and any(_is_brown(c) for c in dominant_colors[:5]):
+            subjects.append("forest or trees")
+            confidence["forest"] = "high"
+
+        # Fire/flame — strong orange + red + yellow dominant
+        warm_count = sum(1 for c in dominant_colors[:5] if _is_warm(c))
+        if warm_count >= 3 and avg_r > 150 and avg_g > 80 and avg_g < 180:
+            subjects.append("fire, flames, or warm lighting")
+            confidence["fire"] = "medium"
+
+        # Skin tones — detect peach/tan ranges prominently
+        skin_count = sum(1 for c in dominant_colors[:6] if _is_skin_tone(c))
+        if skin_count >= 2:
+            subjects.append("likely contains person or portrait")
+            confidence["person"] = "medium"
+
+        # Food — warm, saturated, varied colors in center
+        center = img.crop((w // 4, h // 4, 3 * w // 4, 3 * h // 4))
+        c_stat = ImageStat.Stat(center.convert("RGB"))
+        cr, cg, cb = [int(x) for x in c_stat.mean]
+        if saturation > 100 and cr > 140 and cg > 100 and warm_count >= 2:
+            subjects.append("possibly food or still life")
+            confidence["food"] = "low"
+
+        # Flower — high saturation, varied bright colors
+        if saturation > 150 and len(set(_name_color(*c) for c in dominant_colors[:5])) >= 4:
+            subjects.append("flower or colorful subject")
+            confidence["flower"] = "medium"
+
+        # Document/text — mostly white with dark marks
+        if brightness > 200 and contrast > 60 and saturation < 30:
+            subjects.append("document, paper, or text")
+            confidence["document"] = "high"
+
+        # UI/screenshot
+        edge_pixels = []
+        small = img.resize((100, 100))
+        pxs = list(small.getdata())
+        for i in range(100):
+            edge_pixels.append(pxs[i])
+            edge_pixels.append(pxs[9900 + i])
+        edge_unique = len(set(edge_pixels))
+        if edge_unique < 10 and saturation < 60:
+            subjects.append("UI screenshot or interface")
+            confidence["ui"] = "high"
+
+        if not subjects:
+            subjects.append("abstract or mixed subject")
+
+        return {"subjects": subjects, "confidence": confidence}
+    except Exception:
+        return {"subjects": [], "confidence": {}}
+
+
+def _is_green(c):
+    r, g, b = c
+    return g > r + 20 and g > b + 20 and g > 50
+
+
+def _is_brown(c):
+    r, g, b = c
+    return r > g and g > b and r > 60 and r < 180 and (r - b) > 30
+
+
+def _is_warm(c):
+    r, g, b = c
+    return r > b + 30 and r > 150
+
+
+def _is_skin_tone(c):
+    r, g, b = c
+    return (170 <= r <= 255 and 120 <= g <= 220 and 90 <= b <= 200
+            and r > g and g > b and (r - b) < 90)
+
+
 def _detect_mood(r, g, b, brightness, saturation, contrast):
     moods = []
 
@@ -585,7 +718,7 @@ def _build_full_report(w, h, fmt, mode, mp, size_kb, orientation, aspect,
                        dom_colors, unique_color_names, color_temp, saturation,
                        sharpness, complexity, noise, texture, content_type,
                        mood, color_harmony, regions, histogram, has_transparency,
-                       is_animated, quality_score, suggestions):
+                       is_animated, quality_score, suggestions, scene_subjects=None):
 
     top3_colors = unique_color_names[:3]
     color_str = ", ".join(top3_colors)
@@ -600,13 +733,36 @@ def _build_full_report(w, h, fmt, mode, mp, size_kb, orientation, aspect,
 
     report = f"## 🖼️ NAGRO Image Analysis\n\n"
 
+    # Lead with what we see — subjects first, then technicals
+    subject_summary = ""
+    if scene_subjects and scene_subjects.get("subjects"):
+        subs = scene_subjects["subjects"]
+        if subs and subs[0] != "abstract or mixed subject":
+            subject_summary = f"**I can see: {', '.join(subs[:4])}.** "
+
     report += (
+        f"{subject_summary}"
         f"This is a **{content_type}** in **{orientation.lower()}** orientation ({w}×{h} pixels). "
         f"The dominant colors are **{color_str}**, giving the image a **{color_temp.lower()}** feel. "
     )
     if mood:
         report += f"The overall mood is **{mood.split(' • ')[0].lower()}**. "
     report += f"Image quality score: **{quality_score}/100** {score_emoji}\n\n"
+
+    if scene_subjects and scene_subjects.get("subjects"):
+        subs = scene_subjects["subjects"]
+        conf = scene_subjects.get("confidence", {})
+        if subs and subs[0] != "abstract or mixed subject":
+            report += f"### 👁️ What NAGRO Sees\n\n"
+            for s in subs:
+                # Find confidence level if available
+                lvl = ""
+                for key, c in conf.items():
+                    if key in s.lower() or s.lower().startswith(key):
+                        lvl = f" _(confidence: {c})_"
+                        break
+                report += f"- **{s.capitalize()}**{lvl}\n"
+            report += "\n"
 
     report += f"---\n\n"
 
