@@ -1728,10 +1728,12 @@ class NAGROBrain:
         return overlap * min(len(sentence) / 100, 1.5)
 
     def _smart_fallback(self, prompt: str) -> str:
+        """NEVER returns a generic 'I don't know' — always analyzes the query and builds
+        a thoughtful, structured response based on linguistic + category analysis."""
         topic = self._extract_topic(prompt)
         p = prompt.lower()
 
-        # Last resort: try Wikipedia one more time with cleaned topic
+        # Last resort web attempts
         try:
             from nagro.tools.wikipedia_search import search_wikipedia
             wiki = search_wikipedia(topic)
@@ -1740,58 +1742,242 @@ class NAGROBrain:
         except Exception:
             pass
 
-        # Try to give a thoughtful response based on the question type
-        response = f"## {topic.title()}\n\n"
+        # Analyze the query — figure out what KIND of thing is being asked
+        category = self._categorize_topic(topic, p)
+        q_type = self._question_type(p)
+        return self._compose_structured_answer(topic, p, category, q_type)
 
-        if any(w in p for w in ["how to", "tutorial", "guide", "steps", "learn", "kaise"]):
-            response += (
-                f"Here's a practical approach to **{topic}**:\n\n"
-                f"1. **Start with basics** — understand the core concepts first\n"
-                f"2. **Practice hands-on** — theory alone isn't enough, build something\n"
-                f"3. **Use official documentation** — always the most reliable source\n"
-                f"4. **Join communities** — Stack Overflow, Reddit, Discord for help\n"
-                f"5. **Build projects** — apply what you learn in real scenarios\n\n"
-                f"Would you like me to go deeper into any specific aspect of {topic}?"
-            )
-        elif any(w in p for w in ["compare", "vs", "versus", "difference", "better"]):
-            parts = re.split(r'\b(?:vs|versus|or|compared to|difference between|and)\b', p)
-            if len(parts) >= 2:
-                a_name = parts[0].strip().strip("what is the between").strip()
-                b_name = parts[-1].strip().rstrip("?.")
-                response += (
-                    f"**{a_name.title()} vs {b_name.title()}:**\n\n"
-                    f"Both have their strengths. The best choice depends on your specific needs:\n\n"
-                    f"| Aspect | {a_name.title()} | {b_name.title()} |\n"
-                    f"|--------|{'---' * 5}|{'---' * 5}|\n"
-                    f"| **Use Case** | Depends on requirements | Depends on requirements |\n"
-                    f"| **Learning** | Check official docs | Check official docs |\n\n"
-                    f"Ask me specifically about **{a_name}** or **{b_name}** for detailed information!"
-                )
-            else:
-                response += f"Could you specify what you'd like to compare? For example: \"Compare Python vs JavaScript\""
-        elif any(w in p for w in ["who is", "who was", "kaun hai", "kaun tha"]):
-            response += (
-                f"I don't have specific information about **{topic}** in my knowledge base right now.\n\n"
-                f"I do know about many notable figures — try asking about specific people like Elon Musk, "
-                f"Sundar Pichai, Albert Einstein, Isaac Newton, and more."
-            )
-        elif any(w in p for w in ["when", "what year", "what date", "kab"]):
-            response += (
-                f"I don't have the specific date/time information for **{topic}** right now.\n\n"
-                f"Try asking me about well-known historical events, or I can look it up if you ask more specifically."
-            )
+    def _categorize_topic(self, topic: str, p: str) -> str:
+        """Infer the category of the topic from keywords."""
+        t = topic.lower()
+        # Technology
+        if any(w in t or w in p for w in ["ai", "artificial intelligence", "machine learning",
+                                            "neural", "algorithm", "software", "hardware", "app",
+                                            "programming", "code", "tech", "computer", "internet",
+                                            "cloud", "api", "database", "framework", "library",
+                                            "cybersecurity", "crypto", "blockchain", "web3",
+                                            "startup", "silicon valley"]):
+            return "technology"
+        # Science
+        if any(w in t or w in p for w in ["physics", "chemistry", "biology", "science", "quantum",
+                                            "atom", "molecule", "cell", "dna", "gene", "evolution",
+                                            "ecosystem", "species", "universe", "planet", "star",
+                                            "galaxy", "theory", "experiment", "research"]):
+            return "science"
+        # Business/Economy
+        if any(w in t or w in p for w in ["business", "company", "startup", "revenue", "profit",
+                                            "market", "stock", "finance", "economy", "trade",
+                                            "ceo", "founder", "investor", "bank", "money",
+                                            "currency", "inflation", "gdp", "industry"]):
+            return "business"
+        # Person
+        if any(w in p for w in ["who is", "who was", "who are", "kaun hai", "kaun tha",
+                                 "ceo of", "founder of", "president of", "prime minister"]):
+            return "person"
+        # Place / geography
+        if any(w in t or w in p for w in ["country", "city", "capital", "located in", "where is",
+                                            "continent", "mountain", "river", "ocean", "sea",
+                                            "island", "state", "province", "nation"]):
+            return "place"
+        # History
+        if any(w in t or w in p for w in ["history", "ancient", "medieval", "century", "year",
+                                            "war", "battle", "empire", "kingdom", "revolution",
+                                            "when did", "who invented", "who discovered"]):
+            return "history"
+        # Health / medicine
+        if any(w in t or w in p for w in ["health", "disease", "symptom", "treatment", "medicine",
+                                            "doctor", "hospital", "patient", "virus", "vaccine",
+                                            "diet", "nutrition", "exercise", "mental health"]):
+            return "health"
+        # Education
+        if any(w in t or w in p for w in ["learn", "study", "course", "university", "college",
+                                            "school", "degree", "certification", "exam", "test",
+                                            "how to", "tutorial", "guide", "sikhao"]):
+            return "education"
+        # Food / cooking
+        if any(w in t or w in p for w in ["recipe", "cook", "cooking", "food", "dish", "ingredient",
+                                            "cuisine", "khana", "banao recipe"]):
+            return "food"
+        # Entertainment / media
+        if any(w in t or w in p for w in ["movie", "film", "song", "music", "actor", "actress",
+                                            "singer", "director", "album", "game", "sports",
+                                            "cricket", "football", "fifa", "ipl"]):
+            return "entertainment"
+        return "general"
+
+    def _question_type(self, p: str) -> str:
+        if re.search(r'\b(how to|how do|how can|kaise)\b', p):
+            return "howto"
+        if re.search(r'\b(why|kyun|kyon)\b', p):
+            return "why"
+        if re.search(r'\b(what is|what are|what\'s|define|kya hai|kya hota)\b', p):
+            return "definition"
+        if re.search(r'\b(who|kaun)\b', p):
+            return "who"
+        if re.search(r'\b(when|kab|what year)\b', p):
+            return "when"
+        if re.search(r'\b(where|kahan)\b', p):
+            return "where"
+        if re.search(r'\b(compare|vs|versus|difference|better)\b', p):
+            return "comparison"
+        if re.search(r'\b(list|examples|types|kinds|name)\b', p):
+            return "list"
+        if "?" in p:
+            return "question"
+        return "statement"
+
+    def _compose_structured_answer(self, topic: str, p: str, category: str, q_type: str) -> str:
+        """Build a thoughtful, structured response for any topic + category + question type."""
+        title = topic.title()
+        intro = {
+            "technology": f"**{title}** is a technology-related topic that typically involves computing systems, algorithms, or digital tools.",
+            "science": f"**{title}** falls in the domain of science — grounded in observation, experiment, and theoretical frameworks.",
+            "business": f"**{title}** is a business/economic concept — tied to how value, markets, or organizations work.",
+            "person": f"**{title}** appears to be a person. Without a verified source, I'll outline what the question is asking and point you toward reliable references.",
+            "place": f"**{title}** is a geographic reference — a place, location, or region.",
+            "history": f"**{title}** relates to history — events, people, or developments that shaped the past.",
+            "health": f"**{title}** is a health/medical topic. For personal medical decisions, always consult a qualified doctor.",
+            "education": f"**{title}** is a learning/education topic. Here's a structured approach.",
+            "food": f"**{title}** relates to food or cooking.",
+            "entertainment": f"**{title}** is from the entertainment/sports/media world.",
+            "general": f"Let me walk through what I can tell you about **{title}**.",
+        }
+
+        response = f"## {title}\n\n{intro.get(category, intro['general'])}\n\n"
+
+        # Add structured body based on question type
+        if q_type == "howto":
+            response += self._howto_body(topic, category)
+        elif q_type == "why":
+            response += self._why_body(topic, category)
+        elif q_type == "definition":
+            response += self._definition_body(topic, category)
+        elif q_type == "who":
+            response += self._who_body(topic, category)
+        elif q_type == "when":
+            response += self._when_body(topic, category)
+        elif q_type == "where":
+            response += self._where_body(topic, category)
+        elif q_type == "comparison":
+            response += self._comparison_body(topic, p)
+        elif q_type == "list":
+            response += self._list_body(topic, category)
         else:
-            response += (
-                f"I don't have detailed information about **{topic}** in my current knowledge base.\n\n"
-                f"Here's what I can help with:\n"
-                f"- **AI & Tech:** OpenAI, Anthropic, Google, DeepSeek, LLMs, ML\n"
-                f"- **Programming:** Python, JavaScript, React, APIs, Databases\n"
-                f"- **Science:** Physics, Chemistry, Biology, Space\n"
-                f"- **World:** Countries, History, Economics, Sports, People\n\n"
-                f"Try rephrasing your question or asking about a related topic!"
-            )
+            response += self._general_body(topic, category)
 
-        return response.strip()
+        response += f"\n\n---\n*If you want deeper detail on **{topic}**, ask a more specific question — for example, a particular aspect, use case, or related topic.*"
+        return response
+
+    def _howto_body(self, topic: str, category: str) -> str:
+        return (
+            f"### Approach to **{topic}**\n\n"
+            f"1. **Understand the fundamentals** — what the core concepts and vocabulary are\n"
+            f"2. **Study a working example** — see how it is done in practice\n"
+            f"3. **Try it hands-on** — the fastest way to internalize anything is to do it\n"
+            f"4. **Iterate** — refine based on what works and what breaks\n"
+            f"5. **Go deeper** — once comfortable, explore the edge cases and advanced techniques\n\n"
+            f"### Resources\n"
+            f"- Official documentation (always the primary source)\n"
+            f"- Open online courses: Coursera, freeCodeCamp, YouTube tutorials\n"
+            f"- Communities: Stack Overflow, Reddit, Discord servers\n"
+            f"- Books by recognized authors in the field\n\n"
+            f"Ask me for a specific step or aspect — I can go deeper on any of these."
+        )
+
+    def _why_body(self, topic: str, category: str) -> str:
+        return (
+            f"### Reasons behind **{topic}**\n\n"
+            f"There are usually **multiple contributing factors**:\n\n"
+            f"- **Historical cause** — what led to it\n"
+            f"- **Underlying mechanism** — how it actually works\n"
+            f"- **Practical reason** — why it is still relevant today\n"
+            f"- **Alternative explanations** — competing theories or views\n\n"
+            f"For a precise answer, let me know **which angle** interests you most — "
+            f"the technical/scientific explanation, the historical reason, or the practical impact."
+        )
+
+    def _definition_body(self, topic: str, category: str) -> str:
+        return (
+            f"### What is **{topic}**?\n\n"
+            f"At its core, **{topic}** is best understood through:\n\n"
+            f"- **Its purpose** — what it is meant to do or represent\n"
+            f"- **Its core components** — the main parts that make it up\n"
+            f"- **How it works** — the mechanism or principle behind it\n"
+            f"- **Where it is used** — common applications or examples\n\n"
+            f"### Related concepts\n"
+            f"Topics that often come up alongside **{topic}** are worth exploring together — "
+            f"ask me about any specific related term."
+        )
+
+    def _who_body(self, topic: str, category: str) -> str:
+        return (
+            f"### About **{topic}**\n\n"
+            f"To give an accurate answer about a specific person, I'd need their:\n\n"
+            f"- **Full name** and context (which field — business, science, politics, arts?)\n"
+            f"- **Era** — are they current or historical?\n"
+            f"- **Role or achievement** that made them notable\n\n"
+            f"I have knowledge of many well-known figures. Try rephrasing with the person's "
+            f"full name or the field they work in."
+        )
+
+    def _when_body(self, topic: str, category: str) -> str:
+        return (
+            f"### Timeline for **{topic}**\n\n"
+            f"For a specific date or year, the reliable sources are:\n\n"
+            f"- **Historical records** for past events\n"
+            f"- **Official announcements** for recent/current events\n"
+            f"- **Reference databases** like Wikipedia or Britannica\n\n"
+            f"If you can share a bit more context — the field or era — I can likely narrow it down."
+        )
+
+    def _where_body(self, topic: str, category: str) -> str:
+        return (
+            f"### Location of **{topic}**\n\n"
+            f"If this is a place, it has:\n"
+            f"- **Geographic coordinates** (country, region, continent)\n"
+            f"- **Nearby landmarks** or notable neighbors\n"
+            f"- **Significance** — why the location matters\n\n"
+            f"Rephrase with a bit more context (country or type of place) and I can give you more."
+        )
+
+    def _comparison_body(self, topic: str, p: str) -> str:
+        parts = re.split(r'\b(?:vs|versus|or|compared to|difference between|and)\b', p)
+        a = parts[0].strip().strip("what is the between").strip() if parts else "A"
+        b = parts[-1].strip().rstrip("?.") if len(parts) > 1 else "B"
+        return (
+            f"### {a.title()} vs {b.title()}\n\n"
+            f"When comparing two things, the useful dimensions are:\n\n"
+            f"| Dimension | What to Look At |\n|-----------|-----------------|\n"
+            f"| **Purpose** | What each is designed for |\n"
+            f"| **Strengths** | Where each excels |\n"
+            f"| **Weaknesses** | Where each falls short |\n"
+            f"| **Use case** | Best fit scenarios |\n"
+            f"| **Cost / effort** | Investment required |\n\n"
+            f"Ask me specifically about **{a}** or **{b}** individually and I can give you a direct side-by-side."
+        )
+
+    def _list_body(self, topic: str, category: str) -> str:
+        return (
+            f"### Common examples / types of **{topic}**\n\n"
+            f"Most things in this category fall into a few groups:\n\n"
+            f"- **Popular / mainstream** — widely known and used\n"
+            f"- **Specialized / niche** — for specific use cases\n"
+            f"- **Emerging / new** — recently introduced or trending\n"
+            f"- **Legacy / classic** — long-established, still relevant\n\n"
+            f"Ask me for a specific category (e.g. \"popular types\" or \"beginner-friendly ones\") and I can give concrete examples."
+        )
+
+    def _general_body(self, topic: str, category: str) -> str:
+        return (
+            f"### Breaking down **{topic}**\n\n"
+            f"To really understand this, it helps to look at:\n\n"
+            f"- **What it is** — the definition and core idea\n"
+            f"- **How it works** — the mechanism, process, or structure\n"
+            f"- **Why it matters** — its impact or significance\n"
+            f"- **Common examples** — real-world instances\n"
+            f"- **Related topics** — things to explore next\n\n"
+            f"Ask me about any one of these angles and I can go deep on it."
+        )
 
     def _extract_topic(self, prompt: str) -> str:
         topic = re.sub(
