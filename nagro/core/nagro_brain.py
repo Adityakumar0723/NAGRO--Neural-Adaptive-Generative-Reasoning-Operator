@@ -612,6 +612,7 @@ class NAGROBrain:
         self._search = None
         self._conversation_context: list[dict] = []
         self._user_taught: dict[str, str] = {}
+        self._user_facts: dict[str, str] = {}  # name, age, location, job, likes, etc.
         self._last_topic: str = ""
 
     @property
@@ -702,8 +703,121 @@ class NAGROBrain:
 
     # ── Conversation Intelligence ──
 
+    _PERSONAL_SAVE_PATTERNS = [
+        # name
+        (r"^(?:my name is|i am called|call me|i'm|i am)\s+([A-Za-z][A-Za-z\s]{1,40})(?:[\.\!\?]|$)", "name"),
+        (r"^mera\s+naam\s+(.+?)\s+hai", "name"),
+        (r"^main\s+(.+?)\s+hoon", "name"),
+        # age
+        (r"i(?:'m| am)\s+(\d{1,3})\s*(?:years?\s*old|yr|y/o)", "age"),
+        (r"my age is\s+(\d{1,3})", "age"),
+        (r"i(?:'m| am)\s+(\d{1,3})(?=\s*[\.\!\?]|$)", "age"),
+        # location
+        (r"i(?:'m| am)?\s*(?:from|living in|live in|located in|based in)\s+([A-Za-z][A-Za-z\s,]{1,60})", "location"),
+        (r"main\s+(.+?)\s+(?:se|me|mein)\s+(?:rehta|rahta|hoon|hu)", "location"),
+        # job
+        (r"i(?:'m| am)\s+a\s+([a-z][a-z\s]{2,40}?)(?:\s+at|\s+in|[\.\!\?]|$)", "job"),
+        (r"i work (?:as|at)\s+(?:a|an)?\s*([A-Za-z][A-Za-z\s,]{2,60})", "job"),
+        (r"my job is\s+([A-Za-z][A-Za-z\s,]{2,60})", "job"),
+        # likes / favorites
+        (r"my favou?rite\s+(\w+)\s+is\s+([A-Za-z][A-Za-z\s,]{1,60})", "favorite"),
+        (r"i (?:love|like|enjoy)\s+([A-Za-z][A-Za-z\s,]{2,60})", "likes"),
+        # explicit remember
+        (r"^(?:please\s+)?remember(?:\s+that)?[:\s]+(.+)", "note"),
+        (r"^(?:yaad|note)[:\s]+(.+)", "note"),
+    ]
+
+    _PERSONAL_RECALL_PATTERNS = [
+        (r"what(?:'s| is)?\s+my name|who am i|mera naam kya|meri pehchan", "name"),
+        (r"how old am i|what(?:'s| is)?\s+my age|meri umar", "age"),
+        (r"where (?:do i live|am i from|do i stay)|main kahan", "location"),
+        (r"what (?:do i do|is my job|is my work|do i work as)|mera kaam", "job"),
+        (r"what(?:'s| is)?\s+my favou?rite\s+(\w+)", "favorite"),
+        (r"what do i (?:like|love|enjoy)", "likes"),
+    ]
+
+    def _save_personal_fact(self, prompt: str, p: str) -> str | None:
+        """Detect and save personal facts: name, age, location, job, favorites, likes."""
+        for pat, key in self._PERSONAL_SAVE_PATTERNS:
+            m = re.search(pat, p, re.I)
+            if not m:
+                continue
+            # Skip questions — must be a statement
+            if p.endswith("?") or p.startswith(("what", "who", "how", "where", "when", "why")):
+                continue
+            if key == "favorite":
+                category = m.group(1).strip()
+                value = m.group(2).strip().rstrip(".!?")
+                self._user_facts[f"favorite_{category}"] = value
+                return f"Got it — your favorite **{category}** is **{value.title()}**. I'll remember that."
+            if key == "note":
+                note = m.group(1).strip().rstrip(".!?")
+                existing = self._user_facts.get("notes", "")
+                self._user_facts["notes"] = (existing + "; " + note) if existing else note
+                return f"Noted: **{note}**. I'll remember this for our conversation."
+            value = m.group(1).strip().rstrip(".!?,")
+            # Light sanity checks
+            if key == "name":
+                words = value.split()
+                if len(words) > 4 or any(w in ["a", "an", "the", "going", "trying", "working", "doing", "making", "learning"] for w in words):
+                    continue
+                value = " ".join(w.capitalize() for w in words)
+            elif key == "age":
+                if not value.isdigit() or int(value) < 1 or int(value) > 130:
+                    continue
+            elif key == "job":
+                if len(value) > 50 or any(w in value for w in ["going", "trying", "learning", "studying"]):
+                    continue
+            self._user_facts[key] = value
+            labels = {"name": "name", "age": "age", "location": "location",
+                      "job": "job/role", "likes": "something you enjoy"}
+            label = labels.get(key, key)
+            return f"Got it — I'll remember your **{label}**: **{value}**."
+        return None
+
+    def _recall_personal_fact(self, p: str) -> str | None:
+        """Recall saved personal facts when the user asks."""
+        for pat, key in self._PERSONAL_RECALL_PATTERNS:
+            m = re.search(pat, p, re.I)
+            if not m:
+                continue
+            if key == "favorite":
+                category = m.group(1).strip()
+                val = self._user_facts.get(f"favorite_{category}")
+                if val:
+                    return f"Your favorite **{category}** is **{val.title()}** — you told me earlier."
+                return f"You haven't told me your favorite {category} yet. Share it with me and I'll remember!"
+            val = self._user_facts.get(key)
+            if val:
+                phrasings = {
+                    "name": f"Your name is **{val}** — you told me earlier.",
+                    "age": f"You're **{val} years old**.",
+                    "location": f"You're from **{val}**.",
+                    "job": f"You work as **{val}**.",
+                    "likes": f"You enjoy **{val}**.",
+                }
+                return phrasings.get(key, f"You told me: **{val}**.")
+            prompts = {
+                "name": "You haven't told me your name yet. Say \"my name is ...\" and I'll remember!",
+                "age": "You haven't told me your age yet.",
+                "location": "You haven't told me where you're from yet.",
+                "job": "You haven't told me what you do yet.",
+                "likes": "You haven't told me what you like yet.",
+            }
+            return prompts.get(key, "You haven't shared that with me yet.")
+        return None
+
     def _detect_teaching(self, prompt: str) -> str | None:
         p = prompt.lower().strip()
+
+        # ── Personal facts (highest priority — save + recall) ──
+        personal_save = self._save_personal_fact(prompt, p)
+        if personal_save:
+            return personal_save
+        personal_recall = self._recall_personal_fact(p)
+        if personal_recall:
+            return personal_recall
+
         teach_patterns = [
             (r'^(?:let me (?:tell|explain|teach) you|i(?:\'ll| will) (?:explain|tell you)|listen|note this|remember this|yaad rakh|sun|samjho?)\s*[,:]?\s*(.*)', True),
             (r'^(?:actually|fyi|did you know|fun fact)\s*[,:]?\s*(.*)', True),
@@ -860,6 +974,16 @@ class NAGROBrain:
         last_lower = last_assistant.lower()
         match_count = sum(1 for w in sig_words if w in last_lower)
 
+        # Only use context if either:
+        #  (a) The question uses follow-up signals (it/that/more/also/explain/same)
+        #  (b) Nearly all sig words overlap (strong overlap, not just incidental)
+        followup_signals = {"it", "that", "this", "more", "also", "explain", "same",
+                            "deeper", "further", "elaborate", "aur", "wo"}
+        has_followup_signal = bool(set(p.split()) & followup_signals)
+        strong_overlap = match_count >= max(3, int(len(sig_words) * 0.7))
+        if not (has_followup_signal or strong_overlap):
+            return None
+
         if match_count >= 2 and match_count >= len(sig_words) * 0.4:
             lines = last_assistant.split('\n')
             relevant = []
@@ -1007,8 +1131,25 @@ class NAGROBrain:
                     fixed.append(w)
         return " ".join(fixed) if changed else prompt
 
+    _FUZZY_STOPLIST = frozenset([
+        "name", "time", "home", "work", "life", "year", "year", "yeah", "yes",
+        "day", "week", "good", "bad", "best", "nice", "hard", "easy", "sure",
+        "mine", "yours", "his", "her", "our", "their", "self",
+        "food", "meal", "cold", "hot", "warm", "cool", "fast", "slow",
+        "like", "love", "hate", "want", "need", "have", "had", "has",
+        "this", "that", "these", "those", "there", "here", "where", "when",
+        "what", "who", "how", "why", "which", "whose",
+        "come", "go", "going", "went", "run", "walk", "move",
+        "say", "said", "tell", "told", "ask", "asked", "know", "knew",
+        "think", "thought", "feel", "felt", "mean", "meant",
+        "same", "diff", "part", "whole", "all", "some", "any", "none",
+        "aditya", "raj", "priya", "ravi", "amit", "neha", "aryan", "arjun",
+    ])
+
     def _fuzzy_word_match(self, word: str) -> str | None:
         if len(word) < 4:
+            return None
+        if word in self._FUZZY_STOPLIST:
             return None
         important_words = [
             "calculator", "program", "function", "algorithm", "python", "javascript",
@@ -1432,18 +1573,33 @@ class NAGROBrain:
                                           "much", "old", "long", "far", "of",
                                           "in", "on", "at", "to", "for", "by"}
 
-        for line in lines:
+        # For "when" questions, also pull neighboring lines after a matched header
+        is_when = any(pat in p for pat in ["when was", "when did", "what year", "what date"])
+
+        for i, line in enumerate(lines):
             l_lower = line.lower()
             match_count = sum(1 for w in prompt_words if w in l_lower and len(w) > 2)
             if match_count >= 2 or any(w in l_lower for w in topic_words if len(w) > 3):
                 clean = line.strip().strip('-').strip('*').strip()
                 if clean and len(clean) > 10:
                     relevant.append(clean)
+                    # For when-questions, include next 2-3 lines too for context
+                    if is_when:
+                        for nxt in lines[i+1:i+5]:
+                            nxt_clean = nxt.strip().strip('-').strip('*').strip()
+                            if nxt_clean and len(nxt_clean) > 10 and nxt_clean not in relevant:
+                                relevant.append(nxt_clean)
 
         if relevant:
             header = f"## {topic.title()}\n\n"
-            answer = header + "\n\n".join(relevant[:8])
-            if len(relevant) > 8:
+            answer = header + "\n\n".join(relevant[:12])
+            if len(answer) < 200:
+                # Add surrounding context from the KB
+                extra = [l.strip() for l in lines if l.strip() and len(l.strip()) > 15
+                         and l.strip() not in relevant][:4]
+                if extra:
+                    answer += "\n\n**Context:**\n\n" + "\n".join(f"- {e}" for e in extra)
+            if len(relevant) > 12:
                 answer += f"\n\n*Ask me for more details about {topic}!*"
             return answer
 
