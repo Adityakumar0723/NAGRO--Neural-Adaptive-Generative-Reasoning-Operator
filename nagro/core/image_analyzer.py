@@ -461,12 +461,82 @@ def _detect_scene_subjects(img, w, h, avg_r, avg_g, avg_b, brightness, contrast,
             subjects.append("UI screenshot or interface")
             confidence["ui"] = "high"
 
-        if not subjects:
-            subjects.append("abstract or mixed subject")
+        # Buildings/architecture — straight edges, gray/beige dominance, geometric
+        gray_count = sum(1 for c in dominant_colors[:6] if _is_gray_ish(c))
+        if gray_count >= 3 and brightness > 100 and saturation < 100:
+            subjects.append("building, architecture, or urban scene")
+            confidence["building"] = "medium"
 
-        return {"subjects": subjects, "confidence": confidence}
+        # Vehicle — metallic colors + sharp dark lower region
+        if gray_count >= 2 and lr < 100 and contrast > 50 and saturation < 80:
+            subjects.append("possible vehicle or metallic object")
+            confidence["vehicle"] = "low"
+
+        # Interior room — moderate brightness, warm neutral palette
+        if 100 < brightness < 200 and 30 < saturation < 100 and avg_r > avg_b:
+            beige_count = sum(1 for c in dominant_colors[:5] if _is_beige_ish(c))
+            if beige_count >= 2:
+                subjects.append("indoor room or interior scene")
+                confidence["interior"] = "medium"
+
+        # Animal — mix of fur/skin tones + brown + varied texture
+        fur_count = sum(1 for c in dominant_colors[:6] if _is_fur_tone(c))
+        if fur_count >= 2 and saturation > 40 and saturation < 180:
+            subjects.append("possible animal or pet")
+            confidence["animal"] = "low"
+
+        # Mountains — gray/brown top, varied bottom
+        if ur > 100 and ur < 180 and abs(ur - ug) < 25 and ub < ur:
+            if gray_count >= 1:
+                subjects.append("mountains or rocky terrain")
+                confidence["mountain"] = "medium"
+
+        # Clouds — bright white/gray in upper region
+        if ur > 180 and ug > 180 and ub > 180 and abs(ur - ug) < 30:
+            subjects.append("clouds or overcast sky")
+            confidence["clouds"] = "high"
+
+        # Chart/graph — mostly white + few bright accent colors
+        if brightness > 220 and contrast > 50 and len(set(_name_color(*c) for c in dominant_colors[:5])) >= 3:
+            subjects.append("chart, graph, or data visualization")
+            confidence["chart"] = "medium"
+
+        # Logo/icon — simple with high saturation and few colors
+        if w == h and saturation > 100 and len(set(_name_color(*c) for c in dominant_colors[:5])) <= 3:
+            subjects.append("logo or icon")
+            confidence["logo"] = "medium"
+
+        # Dedupe while preserving order
+        seen = set()
+        deduped = []
+        for s in subjects:
+            if s not in seen:
+                seen.add(s)
+                deduped.append(s)
+
+        if not deduped:
+            deduped.append("abstract or mixed subject")
+
+        return {"subjects": deduped, "confidence": confidence}
     except Exception:
         return {"subjects": [], "confidence": {}}
+
+
+def _is_gray_ish(c):
+    r, g, b = c
+    return abs(r - g) < 25 and abs(g - b) < 25 and abs(r - b) < 25 and 50 < r < 230
+
+
+def _is_beige_ish(c):
+    r, g, b = c
+    return r > 160 and g > 140 and b > 100 and r >= g >= b and (r - b) < 80
+
+
+def _is_fur_tone(c):
+    r, g, b = c
+    return ((60 <= r <= 220 and 40 <= g <= 180 and 20 <= b <= 150 and r >= g >= b)
+            or (r < 80 and g < 80 and b < 80)
+            or (r > 220 and g > 220 and b > 220))
 
 
 def _is_green(c):
@@ -713,6 +783,199 @@ def _generate_suggestions(b_label, c_label, sharpness, saturation, noise, temp, 
 #  BUILD FINAL REPORT
 # ═══════════════════════════════════════════
 
+def _build_narrative(w, h, orientation, aspect, content_type, dom_colors, color_names,
+                     color_temp, saturation, brightness, b_label, contrast, c_label,
+                     sharpness, noise, texture, complexity, mood, harmony,
+                     regions, histogram, scene_subjects, avg_r, avg_g, avg_b):
+    """Build a natural-language description that explains the image like a human would."""
+    paras = []
+
+    # PARA 1 — What is it + main subjects
+    p1_parts = []
+    article = "An" if content_type and content_type[0].lower() in "aeiou" else "A"
+    p1_parts.append(f"{article} **{content_type.lower()}** in {orientation.lower()} orientation ({w}×{h}, {aspect}).")
+
+    subs = []
+    if scene_subjects and scene_subjects.get("subjects"):
+        subs = [s for s in scene_subjects["subjects"] if s != "abstract or mixed subject"]
+
+    if subs:
+        if len(subs) == 1:
+            p1_parts.append(f"The image appears to show **{subs[0]}**.")
+        elif len(subs) == 2:
+            p1_parts.append(f"The image appears to contain **{subs[0]}** along with **{subs[1]}**.")
+        else:
+            main = subs[0]
+            others = ", ".join(subs[1:3])
+            p1_parts.append(f"The scene is dominated by **{main}**, with signs of **{others}** also visible.")
+    else:
+        p1_parts.append("The subject is abstract or mixed — no single clear object dominates.")
+
+    paras.append(" ".join(p1_parts))
+
+    # PARA 2 — Colors and palette
+    p2_parts = []
+    top_colors = color_names[:3]
+    if top_colors:
+        if len(top_colors) == 1:
+            p2_parts.append(f"The palette centers around **{top_colors[0].lower()}**.")
+        else:
+            p2_parts.append(f"The palette is built around **{top_colors[0].lower()}**, **{top_colors[1].lower()}**, and **{top_colors[2].lower() if len(top_colors) > 2 else 'supporting tones'}**.")
+
+    temp_desc = {
+        "Very Warm": "the colors run strongly to the warm end — reds, oranges, and yellows push the image toward sunset or firelight warmth",
+        "Warm": "the overall tone leans warm, giving the image an inviting, sunny character",
+        "Neutral": "the color temperature is balanced — neither warm nor cool pulls on the eye",
+        "Cool": "the overall tone leans cool, giving a calm or crisp feeling",
+        "Very Cool": "the colors are decidedly cool — blues and greens dominate, suggesting water, winter, or evening light",
+    }
+    p2_parts.append(f"In temperature, {temp_desc.get(color_temp, 'the colors are mixed')}.")
+
+    sat_desc = ""
+    if "Very High" in saturation:
+        sat_desc = "The colors are vivid and highly saturated — this is a bold, punchy image."
+    elif "High" in saturation:
+        sat_desc = "Colors are rich and saturated, which makes the image feel lively."
+    elif "Medium" in saturation:
+        sat_desc = "Saturation sits in the middle range — natural and realistic without being flat."
+    elif "Low" in saturation:
+        sat_desc = "Colors are muted and desaturated, giving a subdued or vintage feel."
+    elif "Very Low" in saturation:
+        sat_desc = "The image is nearly grayscale, with very little color intensity."
+    if sat_desc:
+        p2_parts.append(sat_desc)
+
+    if harmony and harmony != "Monochromatic":
+        harmony_desc = {
+            "Complementary (opposite colors)": "The palette uses complementary colors (opposites on the color wheel), creating strong visual contrast.",
+            "Triadic / Split-Complementary": "The palette uses a triadic scheme — three colors evenly spaced, which feels dynamic yet balanced.",
+            "Analogous (neighboring colors)": "The palette is analogous — neighboring hues that feel harmonious and smooth.",
+            "Monochromatic / Analogous": "The palette is tightly grouped, giving a unified, consistent look.",
+            "Mixed / Complex Palette": "The palette mixes multiple color families, giving the image a rich, varied look.",
+        }
+        if harmony in harmony_desc:
+            p2_parts.append(harmony_desc[harmony])
+
+    paras.append(" ".join(p2_parts))
+
+    # PARA 3 — Lighting, brightness, contrast
+    p3_parts = []
+    bright_desc = {
+        "Very Dark": "The image is very dark overall — likely a night scene, a deep shadow, or very low-light photography.",
+        "Dark": "Lighting is on the darker side, suggesting evening, indoor low-light, or a moody atmosphere.",
+        "Medium-Dark": "The lighting leans dark, with shadows playing a bigger role than highlights.",
+        "Medium": "Lighting is balanced — neither overly bright nor dark.",
+        "Bright": "The image is well-lit and bright, suggesting good daylight or clear exposure.",
+        "Very Bright": "The image is very bright — possibly direct sunlight, a studio shot, or a high-key composition.",
+    }
+    p3_parts.append(bright_desc.get(b_label, "The lighting is standard."))
+
+    contrast_desc = {
+        "Very Low": "Contrast is minimal — the tones are flat, which can feel soft or hazy.",
+        "Low": "Contrast is on the gentler side, giving a smooth, even look.",
+        "Medium": "Contrast is well-balanced, with clear separation between light and shadow.",
+        "High": "High contrast gives the image strong definition and visual punch.",
+        "Very High": "Very high contrast — deep blacks and bright highlights make this image feel dramatic.",
+    }
+    p3_parts.append(contrast_desc.get(c_label, ""))
+
+    if histogram:
+        dist = histogram.get("distribution", "")
+        if "Heavily Dark" in dist:
+            p3_parts.append("The tonal distribution leans heavily into shadows — a low-key image.")
+        elif "Heavily Bright" in dist:
+            p3_parts.append("The tonal distribution leans heavily into highlights — a high-key image.")
+        clipped_s = histogram.get("clipped_shadows", 0)
+        clipped_h = histogram.get("clipped_highlights", 0)
+        if clipped_s > 5:
+            p3_parts.append(f"About {clipped_s}% of shadows are clipped — some detail is lost in the darker areas.")
+        if clipped_h > 5:
+            p3_parts.append(f"About {clipped_h}% of highlights are blown out — some detail is lost in the brightest areas.")
+
+    paras.append(" ".join(p3_parts))
+
+    # PARA 4 — Composition and regions
+    p4_parts = []
+    if regions:
+        top_r = regions.get("Top", {})
+        bot_r = regions.get("Bottom", {})
+        cen_r = regions.get("Center", {})
+        left_r = regions.get("Left", {})
+        right_r = regions.get("Right", {})
+
+        comp_lines = []
+        if top_r and bot_r:
+            comp_lines.append(f"The upper portion is dominated by **{top_r.get('color', '?').lower()}** ({top_r.get('brightness', '?').lower()}), while the lower portion is **{bot_r.get('color', '?').lower()}** ({bot_r.get('brightness', '?').lower()}).")
+        if cen_r:
+            comp_lines.append(f"The center of the frame is **{cen_r.get('color', '?').lower()}**, which is where the eye naturally lands first.")
+        if left_r and right_r and left_r.get("color") != right_r.get("color"):
+            comp_lines.append(f"There is a left-to-right shift from **{left_r.get('color', '?').lower()}** to **{right_r.get('color', '?').lower()}**, suggesting asymmetry or a directional gradient.")
+        if comp_lines:
+            p4_parts.append(" ".join(comp_lines))
+
+    tex_desc = {
+        "Smooth / Flat": "The texture is smooth and flat — likely a solid, gradient, or soft-focus area.",
+        "Slightly Textured": "There is a subtle texture, visible on close inspection.",
+        "Moderately Textured": "The image has a moderate amount of texture and detail.",
+        "Highly Textured / Detailed": "The image is richly textured — lots of fine detail and edges.",
+        "Very Detailed / Dense Patterns": "The image is extremely dense with detail or patterns.",
+        "Mixed (some areas detailed, some smooth)": "Texture varies across the frame — some areas are smooth, others sharply detailed.",
+    }
+    if texture in tex_desc:
+        p4_parts.append(tex_desc[texture])
+
+    if p4_parts:
+        paras.append(" ".join(p4_parts))
+
+    # PARA 5 — Technical quality
+    p5_parts = []
+    sharp_desc = {
+        "Very Soft / Blurry": "The image is noticeably soft or blurry — focus or motion blur may be the cause.",
+        "Soft": "The image is on the softer side — not razor-sharp, but acceptable.",
+        "Normal": "Sharpness is in the normal range — looks acceptably crisp.",
+        "Sharp": "The image is sharp with clear edges and good focus.",
+        "Very Sharp / High Detail": "The image is very sharp with excellent fine detail — great resolution and focus.",
+    }
+    p5_parts.append(sharp_desc.get(sharpness, ""))
+
+    noise_desc = {
+        "Very Low (clean)": "Noise is nearly absent — the image is clean.",
+        "Low": "Noise is minimal.",
+        "Moderate": "There is some visible noise or grain.",
+        "High": "Noise is noticeable throughout.",
+        "Very High (noisy/grainy)": "The image is quite noisy or grainy, which could be from low light, high ISO, or heavy compression.",
+    }
+    p5_parts.append(noise_desc.get(noise, ""))
+
+    paras.append(" ".join(p5_parts))
+
+    # PARA 6 — Mood and feeling
+    if mood:
+        mood_main = mood.split(" • ")[0]
+        mood_narr = {
+            "Dark / Dramatic": "The overall feeling is dark and dramatic — heavy shadows and strong tones create tension or intrigue.",
+            "Moody / Subdued": "The mood is moody and subdued — introspective, atmospheric, a bit somber.",
+            "Bright / Airy": "The mood is bright and airy — open, light, and uplifting.",
+            "Light / Cheerful": "The mood feels light and cheerful.",
+            "Vibrant / Energetic": "The image feels vibrant and energetic — the colors push forward with life.",
+            "Muted / Calm": "The mood is muted and calm — restrained colors create a quiet, meditative feel.",
+            "Passionate / Intense": "The image radiates passion and intensity — the dominant reds suggest emotion, warmth, or urgency.",
+            "Cool / Serene": "The image feels cool and serene — the blues suggest water, sky, or quiet reflection.",
+            "Natural / Fresh": "The image feels natural and fresh — green dominance suggests growth, nature, or renewal.",
+            "Warm / Inviting": "The image feels warm and inviting — golden tones give a cozy, welcoming impression.",
+            "Playful / Creative": "The image has a playful, creative feeling — bold, unexpected color choices.",
+            "High-Impact": "The image is high-impact — strong contrasts make it visually arresting.",
+            "Soft / Dreamy": "The image feels soft and dreamy — gentle contrast creates a hazy, ethereal mood.",
+            "Balanced / Neutral": "The overall feeling is balanced and neutral.",
+        }
+        if mood_main in mood_narr:
+            paras.append(mood_narr[mood_main])
+
+    # Clean + join
+    paras = [p for p in paras if p.strip()]
+    return "\n\n".join(paras)
+
+
 def _build_full_report(w, h, fmt, mode, mp, size_kb, orientation, aspect,
                        brightness, b_label, contrast, c_label, avg_r, avg_g, avg_b,
                        dom_colors, unique_color_names, color_temp, saturation,
@@ -733,21 +996,14 @@ def _build_full_report(w, h, fmt, mode, mp, size_kb, orientation, aspect,
 
     report = f"## 🖼️ NAGRO Image Analysis\n\n"
 
-    # Lead with what we see — subjects first, then technicals
-    subject_summary = ""
-    if scene_subjects and scene_subjects.get("subjects"):
-        subs = scene_subjects["subjects"]
-        if subs and subs[0] != "abstract or mixed subject":
-            subject_summary = f"**I can see: {', '.join(subs[:4])}.** "
-
-    report += (
-        f"{subject_summary}"
-        f"This is a **{content_type}** in **{orientation.lower()}** orientation ({w}×{h} pixels). "
-        f"The dominant colors are **{color_str}**, giving the image a **{color_temp.lower()}** feel. "
+    # Build a natural-language narrative describing the image
+    narrative = _build_narrative(
+        w, h, orientation, aspect, content_type, dom_colors, unique_color_names,
+        color_temp, saturation, brightness, b_label, contrast, c_label,
+        sharpness, noise, texture, complexity, mood, color_harmony,
+        regions, histogram, scene_subjects, avg_r, avg_g, avg_b,
     )
-    if mood:
-        report += f"The overall mood is **{mood.split(' • ')[0].lower()}**. "
-    report += f"Image quality score: **{quality_score}/100** {score_emoji}\n\n"
+    report += f"### 📝 Description\n\n{narrative}\n\n"
 
     if scene_subjects and scene_subjects.get("subjects"):
         subs = scene_subjects["subjects"]
@@ -755,7 +1011,6 @@ def _build_full_report(w, h, fmt, mode, mp, size_kb, orientation, aspect,
         if subs and subs[0] != "abstract or mixed subject":
             report += f"### 👁️ What NAGRO Sees\n\n"
             for s in subs:
-                # Find confidence level if available
                 lvl = ""
                 for key, c in conf.items():
                     if key in s.lower() or s.lower().startswith(key):
@@ -764,6 +1019,7 @@ def _build_full_report(w, h, fmt, mode, mp, size_kb, orientation, aspect,
                 report += f"- **{s.capitalize()}**{lvl}\n"
             report += "\n"
 
+    report += f"**Quality Score:** {score_emoji} **{quality_score}/100** `[{score_bar}]`\n\n"
     report += f"---\n\n"
 
     report += f"### 📊 Technical Details\n\n"
