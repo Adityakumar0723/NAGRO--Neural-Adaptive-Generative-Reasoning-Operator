@@ -89,6 +89,14 @@ app.include_router(research_router, prefix="/api/v1", tags=["Research"])
 app.include_router(files_router, prefix="/api/v1", tags=["Files & Code Analysis"])
 app.include_router(ws_router, tags=["WebSocket"])
 app.include_router(openai_router, prefix="/v1", tags=["OpenAI Compatible"])
+# Mount OpenAI-compatible endpoint at multiple prefixes so BYOI platforms
+# (OnDemand, LiteLLM, LangChain, etc.) can reach it regardless of how their
+# proxy forwards paths.
+app.include_router(openai_router, prefix="", tags=["OpenAI Compatible (root)"])
+app.include_router(openai_router, prefix="/apps/nagro/v1", tags=["OpenAI Compatible (ondemand)"])
+app.include_router(openai_router, prefix="/apps/nagro", tags=["OpenAI Compatible (ondemand-root)"])
+app.include_router(openai_router, prefix="/openai/v1", tags=["OpenAI Compatible (openai-style)"])
+app.include_router(openai_router, prefix="/api/openai/v1", tags=["OpenAI Compatible (api-openai)"])
 
 # Static files
 app.mount("/css", StaticFiles(directory="web/css"), name="css")
@@ -99,6 +107,20 @@ app.mount("/assets", StaticFiles(directory="web/assets"), name="assets")
 @app.get("/")
 async def root():
     return FileResponse("web/index.html")
+
+
+@app.get("/_debug/routes")
+async def debug_routes():
+    """List every registered route — handy when a BYOI 404s and you need
+    to see what paths NAGRO actually serves."""
+    routes = []
+    for r in app.routes:
+        methods = getattr(r, "methods", None)
+        path = getattr(r, "path", None)
+        if path and methods:
+            for m in methods:
+                routes.append(f"{m} {path}")
+    return {"count": len(routes), "routes": sorted(routes)}
 
 
 @app.get("/api/v1/health")
