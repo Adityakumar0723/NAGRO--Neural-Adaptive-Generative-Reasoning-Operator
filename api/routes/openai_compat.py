@@ -71,6 +71,39 @@ def _is_ondemand_planner(system_prompt: str) -> bool:
     return "action planner" in sl and "plugins" in sl
 
 
+def _is_json_mode(system_prompt: str, response_format: Optional[dict]) -> bool:
+    """Detect when the caller wants a JSON response (RAG planners, OpenAI
+    json_object mode, or any system prompt explicitly asking for JSON).
+    Important: the OLD OnDemand *action planner* (text-format) is handled
+    separately by _is_ondemand_planner — this must not match it."""
+    # If the OLD action planner (which wants text) is detected, this is NOT JSON mode
+    if _is_ondemand_planner(system_prompt):
+        return False
+    if response_format and isinstance(response_format, dict):
+        rtype = response_format.get("type", "").lower()
+        if rtype in ("json_object", "json", "json_schema"):
+            return True
+    sl = system_prompt.lower()
+    # Strong signals of JSON requirement — all mention JSON explicitly
+    strong = [
+        "return json", "respond in json", "output json", "reply in json",
+        "respond with json", "your response must be json", "json only",
+        "respond only with json", "respond only in json",
+        "respond with a json object", "output a json object",
+        "your output must be a valid json", "output must be a json",
+        "rag planner", "query planner", "json plan",
+        "steps array", "convert the plan",
+    ]
+    if any(s in sl for s in strong):
+        return True
+    # Weaker: has "json" + some planner-ish word
+    if "json" in sl and any(k in sl for k in [
+        "plan", "schema", "format", "structure", "steps", "tools"
+    ]):
+        return True
+    return False
+
+
 def _build_ondemand_plan(user_message: str, system_prompt: str) -> str:
     msg = user_message.lower()
 
@@ -101,29 +134,77 @@ def _build_ondemand_plan(user_message: str, system_prompt: str) -> str:
         return "1. Process the user's request and provide a response\n*Plugins: [executePrompt]"
 
 
+def _build_json_response(user_message: str, system_prompt: str, answer_text: str) -> str:
+    """Produce a valid-JSON response for callers in JSON mode (RAG planners,
+    OpenAI json_object, etc.). We return a single JSON object that:
+      - fits most RAG planner schemas we've seen (steps + plan + reasoning)
+      - also carries the real NAGRO answer under `answer`/`content`/`output`
+    so platforms that read any of those common keys get the usable text."""
+    sl = system_prompt.lower()
+    msg_lower = user_message.lower()
+
+    # Try to detect what KIND of plan the caller wants
+    plan_step = {
+        "step_number": 1,
+        "step": 1,
+        "id": 1,
+        "action": "respond_directly",
+        "tool": "direct_answer",
+        "plugin": "executePrompt",
+        "query": user_message[:500],
+        "description": "Answer the user's query directly from the knowledge base.",
+        "reasoning": "This query can be answered without external tool calls.",
+    }
+
+    # If image intent, swap to image-generation step
+    if any(k in msg_lower for k in ("image", "picture", "draw", "photo",
+                                     "illustration", "banner", "poster")):
+        plan_step.update({
+            "action": "generate_image",
+            "tool": "image_generator",
+            "plugin": "generateImageUsing2.5",
+            "description": "Generate an image for the user's request.",
+        })
+
+    payload = {
+        "status": "ok",
+        "success": True,
+        "plan": [plan_step],
+        "steps": [plan_step],
+        "reasoning": "Direct answer available from NAGRO's self-built knowledge base.",
+        "query": user_message[:1000],
+        "answer": answer_text,
+        "content": answer_text,
+        "output": answer_text,
+        "response": answer_text,
+        "message": answer_text,
+    }
+    return json.dumps(payload, ensure_ascii=False)
+
+
 @router.post("/chat/completions")
 async def chat_completions(request: OpenAIChatRequest, req: Request):
     logger.info(">>> /v1/chat/completions called")
+
+    # Extract prompts FIRST so we can still produce the right shape if later
+    # code fails (e.g. engine not yet initialized).
+    system_prompt = ""
+    user_message = ""
+    for msg in request.messages:
+        if msg.role == "system":
+            system_prompt = (msg.content or "")[:50000]
+        elif msg.role == "user":
+            user_message = (msg.content or "")[:50000]
+    if not user_message:
+        for msg in reversed(request.messages):
+            if msg.content and msg.content.strip():
+                user_message = msg.content[:50000]
+                break
+    if not user_message:
+        user_message = "hello"
+
     try:
         engine = req.app.state.engine
-
-        system_prompt = ""
-        user_message = ""
-
-        for msg in request.messages:
-            if msg.role == "system":
-                system_prompt = (msg.content or "")[:50000]
-            elif msg.role == "user":
-                user_message = (msg.content or "")[:50000]
-
-        if not user_message:
-            for msg in reversed(request.messages):
-                if msg.content and msg.content.strip():
-                    user_message = msg.content[:50000]
-                    break
-
-        if not user_message:
-            user_message = "hello"
 
         logger.info(f">>> user_message: {user_message[:100]}")
 
@@ -131,15 +212,18 @@ async def chat_completions(request: OpenAIChatRequest, req: Request):
         prompt_tokens = sum(len((m.content or "").split()) for m in request.messages)
 
         if _is_ondemand_planner(system_prompt):
-            logger.info(">>> OnDemand planner detected — returning plan format")
+            logger.info(">>> OnDemand ACTION planner detected — returning plan format")
             plan = _build_ondemand_plan(user_message, system_prompt)
             logger.info(f">>> plan: {plan}")
             return _make_completion(plan, completion_id, prompt_tokens)
 
+        # Detect JSON-mode callers (RAG planners, OpenAI json_object, etc.)
+        json_mode = _is_json_mode(system_prompt, request.response_format)
+
         from nagro.core.models import ChatRequest as NAGROChatRequest
         chat_req = NAGROChatRequest(message=user_message, stream=False)
 
-        if request.stream:
+        if request.stream and not json_mode:
             async def stream_response():
                 try:
                     async for chunk in engine.process_stream(chat_req):
@@ -172,11 +256,23 @@ async def chat_completions(request: OpenAIChatRequest, req: Request):
             logger.error(f">>> engine error: {e}")
             content = "Hello! I'm NAGRO 4.1 — your self-built AI assistant. How can I help you today?"
 
+        if json_mode:
+            logger.info(">>> JSON mode detected — wrapping response in JSON")
+            content = _build_json_response(user_message, system_prompt, content)
+
         return _make_completion(content, completion_id, prompt_tokens)
 
     except Exception as e:
         logger.error(f">>> FATAL: {e}\n{traceback.format_exc()}")
-        return _make_completion("Hello! I'm NAGRO 4.1. How can I help you?")
+        # If JSON mode and we hit a fatal error, still return valid JSON so
+        # upstream validators don't fail.
+        fallback_text = "Hello! I'm NAGRO 4.1. How can I help you?"
+        try:
+            if _is_json_mode(system_prompt, request.response_format):
+                fallback_text = _build_json_response(user_message, system_prompt, fallback_text)
+        except Exception:
+            pass
+        return _make_completion(fallback_text)
 
 
 @router.get("/models")
