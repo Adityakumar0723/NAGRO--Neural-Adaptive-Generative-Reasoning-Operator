@@ -71,11 +71,18 @@ def _is_ondemand_planner(system_prompt: str) -> bool:
     return "action planner" in sl and "plugins" in sl
 
 
+import os as _os
+
+
 def _is_json_mode(system_prompt: str, response_format: Optional[dict]) -> bool:
     """Detect when the caller wants a JSON response (RAG planners, OpenAI
     json_object mode, or any system prompt explicitly asking for JSON).
     Important: the OLD OnDemand *action planner* (text-format) is handled
     separately by _is_ondemand_planner — this must not match it."""
+    # Env override for pure BYOI deployments where every call is a planner.
+    if _os.environ.get("NAGRO_ALWAYS_JSON", "").lower() in ("1", "true", "yes"):
+        if not _is_ondemand_planner(system_prompt):
+            return True
     # If the OLD action planner (which wants text) is detected, this is NOT JSON mode
     if _is_ondemand_planner(system_prompt):
         return False
@@ -84,21 +91,39 @@ def _is_json_mode(system_prompt: str, response_format: Optional[dict]) -> bool:
         if rtype in ("json_object", "json", "json_schema"):
             return True
     sl = system_prompt.lower()
-    # Strong signals of JSON requirement — all mention JSON explicitly
+    # Strong signals of JSON requirement — all mention JSON explicitly or
+    # look like an on-prem RAG planner prompt.
     strong = [
         "return json", "respond in json", "output json", "reply in json",
         "respond with json", "your response must be json", "json only",
         "respond only with json", "respond only in json",
         "respond with a json object", "output a json object",
         "your output must be a valid json", "output must be a json",
-        "rag planner", "query planner", "json plan",
-        "steps array", "convert the plan",
+        "rag planner", "query planner", "json plan", "plan generator",
+        "plan the following", "planning agent", "planner agent",
+        "generate a plan", "generate the plan", "produce a plan",
+        "steps array", "convert the plan", "convert this plan",
+        "plan output", "plan response", "planner response",
+        "available tools:", "available plugins:", "available actions:",
+        "tool invocation", "function call plan", "think step by step and return",
+        "on-prem", "on prem", "ondemand", "on-demand", "rag",
+        "subtasks", "subtask list", "sub-task",
     ]
     if any(s in sl for s in strong):
         return True
     # Weaker: has "json" + some planner-ish word
     if "json" in sl and any(k in sl for k in [
-        "plan", "schema", "format", "structure", "steps", "tools"
+        "plan", "schema", "format", "structure", "steps", "tools",
+        "action", "task", "subtask", "response", "output",
+    ]):
+        return True
+    # Weaker 2: planner-style prompt even without the JSON word
+    if any(k in sl for k in ["step 1", "step one", "step-by-step", "step by step"]) and \
+       any(k in sl for k in ["plan", "task", "answer", "respond"]):
+        return True
+    # Weaker 3: long system prompt with any strong hint it's structured
+    if len(sl) > 400 and any(k in sl for k in [
+        "plan", "schema", "steps", "action", "tool", "function",
     ]):
         return True
     return False
@@ -219,6 +244,27 @@ async def chat_completions(request: OpenAIChatRequest, req: Request):
 
         # Detect JSON-mode callers (RAG planners, OpenAI json_object, etc.)
         json_mode = _is_json_mode(system_prompt, request.response_format)
+
+        # Header-based detection — OnDemand's RAG runtime sets specific headers
+        try:
+            headers_lower = {k.lower(): v for k, v in req.headers.items()}
+            ua = headers_lower.get("user-agent", "").lower()
+            referer = headers_lower.get("referer", "").lower()
+            if any(sig in ua for sig in ("ondemand", "on-demand", "python-httpx", "aiohttp")):
+                if any(sig in ua for sig in ("ondemand", "on-demand")):
+                    json_mode = True
+            if "ondemand" in referer or "on-demand" in referer:
+                json_mode = True
+            # Any explicit OnDemand marker header
+            for h_key in headers_lower:
+                if "ondemand" in h_key or "on-demand" in h_key or "rag" in h_key:
+                    json_mode = True
+                    break
+        except Exception:
+            pass
+
+        logger.info(f">>> system_prompt sample: {system_prompt[:200]!r}")
+        logger.info(f">>> json_mode={json_mode}, response_format={request.response_format}")
 
         from nagro.core.models import ChatRequest as NAGROChatRequest
         chat_req = NAGROChatRequest(message=user_message, stream=False)
