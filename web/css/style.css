@@ -360,10 +360,11 @@ body {
     display: flex;
     gap: 4px;
     margin-top: 8px;
-    opacity: 0;
+    opacity: 0.72;
     transition: opacity var(--transition);
 }
 .msg:hover .msg-actions { opacity: 1; }
+.quick-prompt { color: var(--accent); }
 .msg-action-btn {
     background: none;
     border: 1px solid transparent;

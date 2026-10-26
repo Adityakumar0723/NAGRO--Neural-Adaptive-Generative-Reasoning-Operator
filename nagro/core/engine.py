@@ -51,13 +51,17 @@ class NAGROEngine:
             return TaskType.IMAGE
 
         code_keywords = [
-            "code", "function", "class", "program", "debug", "error",
+            "code", "coding", "codding", "programming", "source code", "codebase",
+            "snippet", "function", "class", "program", "debug", "error", "bug",
             "compile", "syntax", "algorithm", "api", "database",
             "python", "javascript", "java", "html", "css", "react",
             "django", "flask", "node", "sql", "git", "docker",
-            "fix this", "write a script", "implement", "refactor",
+            "fix this", "bug fix", "stack trace", "traceback", "exception",
+            "syntax error", "runtime error", "review code", "explain code",
+            "write a script", "implement", "refactor", "coding query",
             "def ", "import ", "const ", "let ", "var ",
-            "code likho", "program banao", "bug fix", "runtime",
+            "code likho", "program banao", "code banao", "program likho",
+            "debug karo", "fix karo", "coding karo", "code samjhao", "runtime",
         ]
         if any(kw in msg_lower for kw in code_keywords):
             return TaskType.CODE
@@ -67,7 +71,8 @@ class NAGROEngine:
             "what is happening", "current", "trend", "statistics",
             "study", "report", "analyze data", "compare",
             "pros and cons", "review of", "source",
-            "khojo", "search karo", "pata karo",
+            "khojo", "search karo", "pata karo", "jaankari", "jankari",
+            "taza khabar", "latest batao", "news batao", "research karo",
         ]
         if any(kw in msg_lower for kw in research_keywords):
             return TaskType.RESEARCH
@@ -76,7 +81,8 @@ class NAGROEngine:
             "calculate", "solve", "equation", "integral", "derivative",
             "matrix", "probability", "statistics", "theorem",
             "proof", "formula", "math", "algebra", "calculus",
-            "geometry", "trigonometry",
+            "geometry", "trigonometry", "hisab", "ganit", "jod", "ghata",
+            "guna", "bhaag", "pratishat", "kitna hoga", "solve karo",
         ]
         if any(kw in msg_lower for kw in math_keywords):
             return TaskType.MATH
@@ -86,6 +92,8 @@ class NAGROEngine:
             "narrative", "script", "dialogue", "blog post",
             "article", "essay", "content", "slogan",
             "tagline", "lyrics", "haiku", "kahani",
+            "kahani likho", "kavita likho", "shayari", "email likho",
+            "essay likho", "story likho", "script likho",
         ]
         if any(kw in msg_lower for kw in creative_keywords):
             return TaskType.CREATIVE
@@ -173,12 +181,20 @@ class NAGROEngine:
         conv.messages.append(Message(role=MessageRole.USER, content=request.message))
 
         task_type = request.task_type or await self.classify_task(request.message)
+        conv.task_type = task_type
         agent = self.router.get_agent(task_type)
         history = self.context.build_context(conv)
 
+        # The web UI streams by default. Keep streaming requests on the same
+        # preparation path as normal requests so coding prompts are handled
+        # consistently in both modes.
+        effective_message = request.message
+        if self._should_use_deep_reasoning(request.message):
+            effective_message = self.cot.build_cot_prompt(effective_message)
+
         full_response = []
         async for chunk in agent.execute_stream(
-            message=request.message,
+            message=effective_message,
             history=history,
         ):
             full_response.append(chunk)

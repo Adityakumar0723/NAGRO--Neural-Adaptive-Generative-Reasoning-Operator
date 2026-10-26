@@ -927,6 +927,12 @@ class NAGROBrain:
         """Clean and normalize the prompt for better understanding."""
         p = prompt.strip()
 
+        # Preserve pasted source code, stack traces, and multiline requests.
+        # Collapsing whitespace or keeping only the last sentence destroys the
+        # very code the user wants NAGRO to inspect.
+        if self._looks_like_code_prompt(p):
+            return p[:30000]
+
         filler = [
             r'\b(?:please|pls|plz|kindly|basically|actually|bro|dude|yaar|bhai|hey)\b',
             r'\b(?:can you|could you|would you|will you|i want you to|i need you to)\b',
@@ -960,6 +966,34 @@ class NAGROBrain:
                         cleaned = cleaned[:400]
 
         return cleaned if len(cleaned) > 3 else p
+
+    def _looks_like_code_prompt(self, prompt: str) -> bool:
+        """Detect coding intent before long-query cleanup and routing."""
+        p = prompt.lower()
+        if "```" in p or "traceback (most recent call last)" in p:
+            return True
+
+        code_actions = (
+            "write", "create", "build", "make", "generate", "implement",
+            "develop", "design", "debug", "fix", "review", "refactor",
+            "explain this code", "code likho", "code banao", "program banao",
+            "program likho", "coding query", "coding karo", "code samjhao",
+        )
+        code_terms = (
+            "code", "coding", "codding", "programming", "python", "javascript",
+            "typescript", "java", "c++", "c#", "html", "css", "react", "node",
+            "sql", "api", "function", "class", "snippet", "bug", "error",
+            "exception", "stack trace", "syntax", "runtime", ".py", ".js",
+            ".html", ".css", ".sql", "console.log", "def ", "import ",
+        )
+        has_action = any(re.search(r"\b" + re.escape(term) + r"\b", p) for term in code_actions)
+        has_term = any(term in p for term in code_terms)
+        has_source_shape = bool(re.search(
+            r"(?:^|\n)\s*(?:def |class |import |from |const |let |var |function |SELECT |<\/?[a-z])",
+            prompt,
+            re.I,
+        ))
+        return has_source_shape or (has_action and has_term)
 
     def think(self, prompt: str, system_prompt: str = "", history: list | None = None) -> str:
         if history:
@@ -1189,10 +1223,23 @@ class NAGROBrain:
             "keep going", "what else", "aur kya",
             "detail mein batao", "vistar se batao",
             "and more", "give me more", "more info",
+            "continue with the next useful step", "next step",
         }
         if p in followup_phrases or any(p.startswith(f) for f in followup_phrases):
             if self._last_topic:
                 return f"explain {self._last_topic} in more detail"
+
+        if self._last_topic and any(phrase in p for phrase in [
+            "explain the previous answer in simple language",
+            "simple language", "simple mein samjhao", "easy language mein",
+        ]):
+            return f"explain {self._last_topic} in simple language with a short example"
+
+        if self._last_topic and any(phrase in p for phrase in [
+            "give a practical example", "give me an example", "example do",
+            "example batao", "practical example",
+        ]):
+            return f"give a practical example of {self._last_topic}"
 
         ref_patterns = [
             r"^(?:explain|samjhao|batao)\s+(?:this|that|it|ye|wo|isko|usko)",
@@ -1334,6 +1381,7 @@ class NAGROBrain:
 
     _SPELL_DICT: dict[str, str] = {
         # Code-related typos
+        "codding": "coding", "codinng": "coding", "codign": "coding",
         "calculater": "calculator", "claulator": "calculator", "calcultor": "calculator",
         "calcualtor": "calculator", "calculaor": "calculator", "calulator": "calculator",
         "caluclator": "calculator", "claculator": "calculator",
@@ -1410,6 +1458,10 @@ class NAGROBrain:
     }
 
     def _fix_spelling(self, prompt: str) -> str:
+        # Do not re-tokenize multiline source; split/join would destroy
+        # indentation and make pasted code impossible to debug.
+        if self._looks_like_code_prompt(prompt) and ("\n" in prompt or "```" in prompt):
+            return prompt
         words = prompt.split()
         fixed = []
         changed = False
@@ -1511,8 +1563,13 @@ class NAGROBrain:
         if any(k in p for k in system_kw):
             return "system"
 
-        # Analytical / research intent — these are NEVER code requests even if
-        # they mention technical terms like "api", "application", "cloud".
+        # Coding intent must win before analytical and long-query routing.
+        # Pasted source often contains words such as "explain" or "review".
+        if self._looks_like_code_prompt(p):
+            return "code"
+
+        # Technical discussions without a coding request still belong to the
+        # general answer handler.
         analytical_verbs = ["analyze", "investigate", "examine", "explain", "describe",
                             "discuss", "evaluate", "assess", "review", "compare",
                             "research", "study", "explore", "summarize", "summarise",
@@ -1522,15 +1579,7 @@ class NAGROBrain:
         # Long queries (30+ words) are almost always analytical/research, not code
         long_query = len(p.split()) >= 30
         if is_analytical or long_query:
-            # Still allow code if it unambiguously says to write code
-            unambiguous_code = any(k in p for k in ["write code", "write a program",
-                                                     "write a function", "write a script",
-                                                     "code likho", "program banao",
-                                                     "give me the code", "python code for",
-                                                     "javascript code for", "html code for"])
-            if not unambiguous_code:
-                # route analytical queries to general handler
-                return "general"
+            return "general"
 
         action_verbs = ["make", "build", "create", "write", "generate", "code",
                         "implement", "develop", "design", "program",
@@ -1569,7 +1618,9 @@ class NAGROBrain:
                      "build a app", "build an app", "make a app", "make an app",
                      "create a app", "create an app", "generate code"]
         score = sum(2 for k in strong_kw if k in p)
-        weak_kw = ["coding", "implement", "debug", "algorithm", "data structure",
+        weak_kw = ["coding", "codding", "programming", "source code", "codebase",
+                   "snippet", "implement", "debug", "bug", "review code", "explain code",
+                   "algorithm", "data structure",
                    "linked list", "binary search", "quicksort", "merge sort",
                    "hash map", "binary tree", "rest api", "web scraper",
                    "flask", "django", "express", "react app", "react component",
@@ -2702,8 +2753,70 @@ class NAGROBrain:
 
     # ── Code ──
 
+    def _is_code_analysis_request(self, prompt: str) -> bool:
+        p = prompt.lower()
+        actions = [
+            "debug", "debug karo", "fix this", "fix karo", "review this code",
+            "review code", "explain this code", "why does this code",
+            "why is this code", "what is wrong with this code", "bug in this",
+            "error in this", "not working", "doesn't work", "does not work",
+        ]
+        return any(action in p for action in actions) and (
+            "```" in p
+            or any(term in p for term in [
+                "python", "javascript", "typescript", "java", "html", "css",
+                "react", "sql", "def ", "class ", "function ", "traceback",
+                "stack trace", "syntax error", "runtime error",
+            ])
+        )
+
+    def _review_code_request(self, prompt: str) -> str:
+        """Return useful local diagnostics for pasted code without a model."""
+        blocks = re.findall(r"```(?:\w+)?\s*\n([\s\S]*?)```", prompt)
+        source = "\n\n".join(blocks).strip()
+        language = "Python" if re.search(r"\b(def|import|from)\b", source, re.I) else "the supplied language"
+        findings = []
+
+        if source and language == "Python":
+            try:
+                ast.parse(source)
+                findings.append("Python syntax check passed.")
+            except SyntaxError as exc:
+                findings.append(
+                    f"Python syntax error at line {exc.lineno or '?'}: {exc.msg}."
+                )
+
+        checks = [
+            ("eval(", "Avoid eval() for untrusted input; parse and validate values explicitly."),
+            ("except:", "Use a specific exception type instead of a bare except block."),
+            ("password =", "Do not hard-code credentials; load secrets from environment variables."),
+            ("debugger;", "Remove the debugger statement before shipping."),
+            ("console.log(", "Remove or gate debug logging in production code."),
+        ]
+        for marker, message in checks:
+            if marker in prompt.lower():
+                findings.append(message)
+
+        if not findings:
+            findings.append(
+                "No obvious issue was found by the local static checks. Check the first traceback line, "
+                "the values entering the failing function, and the failing branch next."
+            )
+
+        code_note = "\n\nPaste the complete code inside a ``` block and include the full error message for a line-by-line fix."
+        return (
+            "## Code review\n\n"
+            f"**Language:** {language}\n\n"
+            "### Findings\n\n"
+            + "\n".join(f"- {finding}" for finding in findings)
+            + code_note
+        )
+
     def _handle_code(self, prompt: str) -> str:
         p = prompt.lower()
+
+        if self._is_code_analysis_request(prompt):
+            return self._review_code_request(prompt)
 
         # Strip action verbs to get the core request
         core = re.sub(
@@ -2743,7 +2856,8 @@ class NAGROBrain:
 
         # If request sounds like an interactive app, try HTML first
         app_words = ["app", "application", "webpage", "web page", "website",
-                     "page", "site", "interactive", "ui", "frontend"]
+                     "page", "site", "interactive", "ui", "frontend", "clone",
+                     "youtube", "video platform", "video sharing"]
         wants_app = any(w in p for w in app_words)
         if wants_app:
             html_code = self._generate_html_code(p, core)
@@ -3027,7 +3141,8 @@ class NAGROBrain:
                                             "journal", "contacts", "inventory", "bookmark", "wishlist",
                                             "shopping", "expense", "budget", "habit"])
         is_display = any(w in p for w in ["dashboard", "display", "viewer", "gallery", "showcase",
-                                            "portfolio", "resume", "profile", "card", "landing"])
+                                            "portfolio", "resume", "profile", "card", "landing",
+                                            "youtube", "video platform", "video sharing", "video app"])
         is_timer = any(w in p for w in ["timer", "stopwatch", "clock", "countdown", "alarm",
                                          "pomodoro", "schedule"])
         is_quiz = any(w in p for w in ["quiz", "trivia", "test", "exam", "question", "flashcard"])
