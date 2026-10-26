@@ -74,6 +74,36 @@ def _is_ondemand_planner(system_prompt: str) -> bool:
 import os as _os
 
 
+def _is_planner_prompt(system_prompt: str) -> bool:
+    """Detect specifically the RAG/planner call — distinct from a chat call
+    that happens to want JSON output. Planner calls want a plan structure
+    describing WHICH tools to run, not an answer to the user's query."""
+    sl = system_prompt.lower()
+    if _is_ondemand_planner(sl):
+        return True
+    # Env-level force for pure BYOI deployments
+    if _os.environ.get("NAGRO_ALWAYS_JSON", "").lower() in ("1", "true", "yes"):
+        if any(sig in sl for sig in [
+            "plan", "planner", "tool", "action", "step", "schema",
+            "available", "subtask", "rag", "retrieve",
+        ]):
+            return True
+    planner_signals = [
+        "rag planner", "query planner", "plan generator", "planning agent",
+        "planner agent", "action planner",
+        "generate a plan", "produce a plan", "convert the plan",
+        "plan the following", "plan this query",
+        "available tools:", "available plugins:", "available actions:",
+        "think step by step and return",
+        "steps array", "plan output", "plan response", "planner response",
+        "subtask list", "sub-task list",
+        "on-prem planner", "on_prem_planner", "planning_v1",
+        "break the user", "break down the user", "break the query",
+        "decide which tool", "choose a tool", "select a plugin",
+    ]
+    return any(sig in sl for sig in planner_signals)
+
+
 def _is_json_mode(system_prompt: str, response_format: Optional[dict]) -> bool:
     """Detect when the caller wants a JSON response (RAG planners, OpenAI
     json_object mode, or any system prompt explicitly asking for JSON).
@@ -159,50 +189,226 @@ def _build_ondemand_plan(user_message: str, system_prompt: str) -> str:
         return "1. Process the user's request and provide a response\n*Plugins: [executePrompt]"
 
 
+def _detect_plan_intents(user_message: str) -> list[dict]:
+    """Pick which real plugins the planner should invoke based on query intent.
+    Each returned dict is a plan STEP OnDemand can execute. Multiple steps
+    are returned so OnDemand can invoke ALL relevant plugins and NAGRO can
+    synthesize their outputs in the final answer call."""
+    m = user_message.lower()
+    steps: list[dict] = []
+
+    # Research / news / intelligence / report queries → multi-plugin fan-out
+    research_markers = [
+        "news", "latest", "trend", "intelligence report", "report on",
+        "update on", "current", "today", "this week", "this month",
+        "ongoing", "live", "recent", "status of", "what is happening",
+        "find out", "research", "investigate", "track", "monitor",
+        "find the latest", "give me the latest",
+    ]
+    is_research = any(k in m for k in research_markers)
+    if is_research:
+        steps.append({
+            "action": "web_search",
+            "tool": "search",
+            "plugin": "webSearchPlugin",
+            "query": user_message[:500],
+            "description": "Search the open web for current information on the query.",
+            "reasoning": "Pull live web results to ground the answer in up-to-date facts.",
+        })
+        steps.append({
+            "action": "news_search",
+            "tool": "news",
+            "plugin": "newsPlugin",
+            "query": user_message[:500],
+            "description": "Pull current news articles related to the query.",
+            "reasoning": "News coverage is the fastest source for intelligence/report queries.",
+        })
+
+    # Deep analytical / multi-aspect reports → research + news + wiki
+    analytical_markers = [
+        "analyze", "analysis", "deep dive", "intelligence report",
+        "detailed report", "comprehensive", "breakdown", "map how",
+        "geopolitical", "ecosystem", "impact of", "effects of",
+        "future predictions", "forecast", "outlook",
+        "detailed intelligence", "comparative analysis",
+    ]
+    is_analytical = any(k in m for k in analytical_markers)
+    if is_analytical:
+        if not any(s["plugin"] == "webSearchPlugin" for s in steps):
+            steps.append({
+                "action": "web_search",
+                "tool": "search",
+                "plugin": "webSearchPlugin",
+                "query": user_message[:500],
+                "description": "Gather web sources for the analytical report.",
+                "reasoning": "Analytical reports need current, cited facts.",
+            })
+        steps.append({
+            "action": "knowledge_lookup",
+            "tool": "knowledge_base",
+            "plugin": "wikipediaPlugin",
+            "query": user_message[:500],
+            "description": "Look up background knowledge from Wikipedia and reference sources.",
+            "reasoning": "Analytical reports need stable background context, not just news.",
+        })
+
+    # Image generation
+    image_markers = ["image", "picture", "draw", "photo", "illustration",
+                     "banner", "poster", "wallpaper", "artwork",
+                     "generate an image", "create an image", "make an image"]
+    if any(k in m for k in image_markers):
+        steps.append({
+            "action": "generate_image",
+            "tool": "image_generator",
+            "plugin": "generateImageUsing2.5",
+            "query": user_message[:500],
+            "description": "Generate an image for the user's request.",
+            "reasoning": "The user wants a visual output.",
+        })
+
+    # Code / debug / implementation
+    code_markers = ["write code", "write a program", "write a function",
+                    "write a class", "write a script", "write a method",
+                    "write a python", "write a javascript", "write a java",
+                    "write a html", "write a css", "write a sql",
+                    "implement", "debug", "fix this code", "code likho",
+                    "program banao", "python code", "javascript code",
+                    "html code", "sql query", "python function",
+                    # App builders
+                    "make a app", "make an app", "build a app", "build an app",
+                    "create a app", "create an app", "make a website",
+                    "build a website", "create a website",
+                    "make a game", "build a game", "create a game",
+                    "snake game", "tic tac toe", "calculator app", "todo app",
+                    "chat app", "quiz app", "login page",
+                    # Hinglish
+                    "coding karo", "code banao", "program likho", "code samjhao",
+                    ]
+    if any(k in m for k in code_markers):
+        steps.append({
+            "action": "generate_code",
+            "tool": "code_generator",
+            "plugin": "codePlugin",
+            "query": user_message[:500],
+            "description": "Generate code for the user's request.",
+            "reasoning": "The user is asking for a code artifact.",
+        })
+
+    # Math / calculation
+    math_markers = ["calculate", "solve", "equation", "derivative",
+                    "integral", "probability of", "percentage of",
+                    "square root", "factorial"]
+    if any(k in m for k in math_markers):
+        steps.append({
+            "action": "solve_math",
+            "tool": "math_solver",
+            "plugin": "mathPlugin",
+            "query": user_message[:500],
+            "description": "Solve the math problem step by step.",
+            "reasoning": "The user wants a math solution.",
+        })
+
+    # Document / file
+    doc_markers = ["summarize this", "summarize the", "analyze this document",
+                   "pdf", "docx", "spreadsheet", "csv file", "attached file"]
+    if any(k in m for k in doc_markers):
+        steps.append({
+            "action": "process_document",
+            "tool": "document_processor",
+            "plugin": "documentPlugin",
+            "query": user_message[:500],
+            "description": "Process and summarize the referenced document.",
+            "reasoning": "The user is referring to a document that needs processing.",
+        })
+
+    # Final synthesis step always closes the plan — NAGRO will take all the
+    # plugin outputs collected above and compose the final human-readable
+    # answer. OnDemand will call /chat/completions again (without planner
+    # system prompt) to get this synthesis.
+    steps.append({
+        "action": "respond_with_answer",
+        "tool": "direct_answer",
+        "plugin": "executePrompt",
+        "query": user_message[:500],
+        "description": "Synthesize all retrieved plugin outputs into a clear, detailed, cited answer.",
+        "reasoning": "Deliver the final human-readable answer that cites the collected sources.",
+    })
+
+    # Number the steps
+    for i, s in enumerate(steps, 1):
+        s["step_number"] = i
+        s["step"] = i
+        s["id"] = i
+
+    return steps
+
+
+def _build_thinking(user_message: str, steps: list[dict]) -> str:
+    """Produce a human-readable chain of thought the UI can show as 'thinking'."""
+    plugins = [s["plugin"] for s in steps]
+    lines = [
+        f"Analyzing the user's query: {user_message[:200]}" + ("…" if len(user_message) > 200 else ""),
+        "",
+        "Breaking it down:",
+    ]
+    if any(p == "webSearchPlugin" for p in plugins):
+        lines.append("- The query asks about current/recent information → web search needed")
+    if any(p == "newsPlugin" for p in plugins):
+        lines.append("- News coverage is relevant → will pull latest articles")
+    if any(p == "wikipediaPlugin" for p in plugins):
+        lines.append("- Background context required → will look up Wikipedia")
+    if any(p == "codePlugin" for p in plugins):
+        lines.append("- Query is coding-related → will generate code")
+    if any(p == "mathPlugin" for p in plugins):
+        lines.append("- Query is mathematical → will solve step by step")
+    if any(p == "generateImageUsing2.5" for p in plugins):
+        lines.append("- Query asks for a visual → will generate an image")
+    if any(p == "documentPlugin" for p in plugins):
+        lines.append("- Query references a document → will process it")
+    lines.append("")
+    lines.append(f"Plan: {len(steps)} step(s) across {len(set(plugins))} plugin(s).")
+    lines.append("After plugin outputs come back, NAGRO will synthesize a final cited answer.")
+    return "\n".join(lines)
+
+
 def _build_json_response(user_message: str, system_prompt: str, answer_text: str) -> str:
     """Produce a valid-JSON response for callers in JSON mode (RAG planners,
     OpenAI json_object, etc.). We return a single JSON object that:
       - fits most RAG planner schemas we've seen (steps + plan + reasoning)
+      - routes to real plugins (webSearch, codePlugin, mathPlugin, imageGen,
+        documentPlugin, executePrompt) so OnDemand can call them to fetch
+        live data instead of relying on NAGRO's static KB
       - also carries the real NAGRO answer under `answer`/`content`/`output`
     so platforms that read any of those common keys get the usable text."""
-    sl = system_prompt.lower()
-    msg_lower = user_message.lower()
+    steps = _detect_plan_intents(user_message)
+    primary_plugins = [s["plugin"] for s in steps if s["plugin"] != "executePrompt"]
+    primary_plugins = list(dict.fromkeys(primary_plugins))  # dedupe keep order
 
-    # Try to detect what KIND of plan the caller wants
-    plan_step = {
-        "step_number": 1,
-        "step": 1,
-        "id": 1,
-        "action": "respond_directly",
-        "tool": "direct_answer",
-        "plugin": "executePrompt",
-        "query": user_message[:500],
-        "description": "Answer the user's query directly from the knowledge base.",
-        "reasoning": "This query can be answered without external tool calls.",
-    }
-
-    # If image intent, swap to image-generation step
-    if any(k in msg_lower for k in ("image", "picture", "draw", "photo",
-                                     "illustration", "banner", "poster")):
-        plan_step.update({
-            "action": "generate_image",
-            "tool": "image_generator",
-            "plugin": "generateImageUsing2.5",
-            "description": "Generate an image for the user's request.",
-        })
+    thinking = _build_thinking(user_message, steps)
+    reasoning = (
+        f"Planned {len(steps)} step(s). "
+        f"Tools to invoke: {', '.join(primary_plugins) if primary_plugins else 'direct answer'}."
+    )
 
     payload = {
         "status": "ok",
         "success": True,
-        "plan": [plan_step],
-        "steps": [plan_step],
-        "reasoning": "Direct answer available from NAGRO's self-built knowledge base.",
+        "plan": steps,
+        "steps": steps,
+        "subtasks": steps,
+        "tools": primary_plugins + ["executePrompt"],
+        "plugins": primary_plugins + ["executePrompt"],
+        "reasoning": reasoning,
+        "thinking": thinking,
+        "thought": thinking,
+        "chain_of_thought": thinking,
         "query": user_message[:1000],
         "answer": answer_text,
         "content": answer_text,
         "output": answer_text,
         "response": answer_text,
         "message": answer_text,
+        "text": answer_text,
     }
     return json.dumps(payload, ensure_ascii=False)
 
@@ -265,6 +471,18 @@ async def chat_completions(request: OpenAIChatRequest, req: Request):
 
         logger.info(f">>> system_prompt sample: {system_prompt[:200]!r}")
         logger.info(f">>> json_mode={json_mode}, response_format={request.response_format}")
+
+        # ── FAST PATH for RAG planner calls specifically ──
+        # When a RAG planner is calling us, it wants a plan structure, not a
+        # chat answer. Skip the heavy brain and return a canned plan quickly
+        # — this prevents container-cold-start/brain-processing timeouts that
+        # produce the "no response from model" error.
+        is_planner_call = _is_planner_prompt(system_prompt)
+        if is_planner_call:
+            logger.info(">>> PLANNER call detected — using FAST path (no brain)")
+            fast_json = _build_json_response(user_message, system_prompt,
+                                              answer_text="Plan accepted.")
+            return _make_completion(fast_json, completion_id, prompt_tokens)
 
         from nagro.core.models import ChatRequest as NAGROChatRequest
         chat_req = NAGROChatRequest(message=user_message, stream=False)
